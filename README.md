@@ -1,4 +1,4 @@
-# DS GIS Pipeline
+# GIS Pipeline
 
 A data science pipeline for processing and analyzing geospatial data using Google Earth Engine.
 
