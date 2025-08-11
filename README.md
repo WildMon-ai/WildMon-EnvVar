@@ -30,10 +30,6 @@ cd ds-gis-pipeline
 pip install -r requirements.txt
 ```
 
-3. Authenticate with Google Earth Engine:
-```bash
-earthengine authenticate
-```
 
 ## Usage
 
