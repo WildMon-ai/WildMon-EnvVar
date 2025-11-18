@@ -1,45 +1,3 @@
-# SRTM Digital Elevation Data Version 4
-Dataset: CGIAR/SRTM90_V4
-
-- Description: Shuttle Radar Topography Mission (SRTM) Digital Elevation Model (DEM) at 3‑arc‑second (~90 m) resolution, void‑filled and mosaicked by CGIAR‑CSI (Version 4). Provides near‑global land elevation referenced to WGS84 ellipsoid/EGM96 geoid (values in meters above mean sea level). Ideal as a baseline for topography, hydrology (flow direction/accumulation), slope/aspect, relief, and terrain‑correction in ecological and remote‑sensing workflows.
-
-- Temporal range: February 2000 (single-epoch DEM)
-
-- Spatial resolution: ~90 m (3 arc‑seconds)
-
-- Coverage: Near‑global land (≈ 60° N to 56° S)
-
-- Projection: EPSG:4326 (WGS 84 geographic)
-
-- Preprocessing requirements: None for basic elevation use. (Already void‑filled and mosaicked.) Optional: clip to AOI; derive slope/aspect/hillshade with ee.Terrain.products; reproject to desired CRS/scale for analysis.
-
-- GEE Documentation: https://developers.google.com/earth-engine/datasets/catalog/CGIAR_SRTM90_V4
-- Citations: Jarvis, A., H.I. Reuter, A. Nelson, E. Guevara. 2008. Hole-filled SRTM for the globe Version 4, available from the CGIAR-CSI SRTM 90m Database: https://srtm.csi.cgiar.org.
-
-
-Python example:
-```
-dataset = ee.Image('CGIAR/SRTM90_V4')
-elevation = dataset.select('elevation')
-#slope = ee.Terrain.slope(elevation)
-
-# Visualization parameters
-elevation_vis = {
-    'min': 0.0,
-    'max': 1000.0,
-    'palette': ['0000ff', '00ffff', 'ffff00', 'ff0000', 'ffffff']
-}
-
-# Create a map
-Map = geemap.Map()
-Map.setCenter(-6.746, 46.529, 4)  # lon, lat, zoom
-Map.addLayer(elevation, elevation_vis, 'DEM')
-
-# Display map
-Map
-```
-
-
 # Copernicus GLO-30
 Dataset: COPERNICUS/DEM/GLO30
 
@@ -98,3 +56,47 @@ Map.addLayer(elevation, elevation_vis, 'DEM')
 # Display map
 Map
 ```
+
+
+# SRTM Digital Elevation Data Version 4
+Dataset: CGIAR/SRTM90_V4
+
+- Description: Shuttle Radar Topography Mission (SRTM) Digital Elevation Model (DEM) at 3‑arc‑second (~90 m) resolution, void‑filled and mosaicked by CGIAR‑CSI (Version 4). Provides near‑global land elevation referenced to WGS84 ellipsoid/EGM96 geoid (values in meters above mean sea level). Ideal as a baseline for topography, hydrology (flow direction/accumulation), slope/aspect, relief, and terrain‑correction in ecological and remote‑sensing workflows.
+
+- Temporal range: February 2000 (single-epoch DEM)
+
+- Spatial resolution: ~90 m (3 arc‑seconds)
+
+- Coverage: Near‑global land (≈ 60° N to 56° S)
+
+- Projection: EPSG:4326 (WGS 84 geographic)
+
+- Preprocessing requirements: None for basic elevation use. (Already void‑filled and mosaicked.) Optional: clip to AOI; derive slope/aspect/hillshade with ee.Terrain.products; reproject to desired CRS/scale for analysis.
+
+- GEE Documentation: https://developers.google.com/earth-engine/datasets/catalog/CGIAR_SRTM90_V4
+- Citations: Jarvis, A., H.I. Reuter, A. Nelson, E. Guevara. 2008. Hole-filled SRTM for the globe Version 4, available from the CGIAR-CSI SRTM 90m Database: https://srtm.csi.cgiar.org.
+
+
+Python example:
+```
+dataset = ee.Image('CGIAR/SRTM90_V4')
+elevation = dataset.select('elevation')
+#slope = ee.Terrain.slope(elevation)
+
+# Visualization parameters
+elevation_vis = {
+    'min': 0.0,
+    'max': 1000.0,
+    'palette': ['0000ff', '00ffff', 'ffff00', 'ff0000', 'ffffff']
+}
+
+# Create a map
+Map = geemap.Map()
+Map.setCenter(-6.746, 46.529, 4)  # lon, lat, zoom
+Map.addLayer(elevation, elevation_vis, 'DEM')
+
+# Display map
+Map
+```
+
+

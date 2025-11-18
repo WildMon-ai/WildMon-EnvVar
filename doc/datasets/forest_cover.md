@@ -1,6 +1,6 @@
 # Hansen Global Forest Change v1.12 (2000–2024)
 
-Dataset: UMD/hansen/global_forest_change_2024_v1_12
+Dataset: UMD/hansen/global_forest_change_2024_v1_12 
 
 - Description: Global forest extent and change derived from annual time-series analysis of Landsat imagery. Includes tree canopy cover for 2000, annual forest loss (2001–2024), forest gain (2000–2012), and reference multispectral composites from the first and last years of the study period. The dataset enables high-resolution tracking of deforestation, regrowth, and forest dynamics over the 21st century, with 30 m pixel size. Forest loss is defined as a stand-replacement disturbance (forest → non-forest), while forest gain represents the opposite (non-forest → forest) within the specified period. Developed by the University of Maryland’s Global Land Analysis and Discovery (GLAD) lab in collaboration with Google, USGS, and NASA.
 

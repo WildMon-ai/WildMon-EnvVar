@@ -1,7 +1,7 @@
 
 # ETH Global Sentinel-2 10m Canopy Height (2020)
 
-- Dataset: "users/nlang/ETH_GlobalCanopyHeight_2020_10m_v1"
+- Dataset: "users/nlang/ETH_GlobalCanopyHeight_2020_10m_v1 "
 
 - Description: Global canopy top height for the year 2020 at 10 m ground sampling distance. A probabilistic deep learning model has been developed to retrieve canopy top height from Sentinel-2 images anywhere on Earth. This model, an ensemble of convolutional neural networks (CNN) is trained with sparse supervision from GEDI derived canopy top height data (i.e. estimated RH98 from Lang et al., 2022). Furthermore, the predictive uncertainty of these dense estimates is quantified. That approach reduces the saturation effect commonly encountered when estimating canopy height from optical satellite images allowing to resolve tall canopies with typically high carbon stocks. The global wall-to-wall map is based on Sentinel-2 images taken between May and September 2020. See the project page for more resources and links to download data.
 

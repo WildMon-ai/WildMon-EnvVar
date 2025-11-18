@@ -2,6 +2,7 @@ import ee
 from pathlib import Path
 from typing import Optional
 
+
 class AuthenticationService:
     """Handles Google Earth Engine authentication."""
 
@@ -31,7 +32,9 @@ class AuthenticationService:
                 return True
 
             if service_account and key_file:
-                credentials = ee.ServiceAccountCredentials(service_account, str(key_file))
+                credentials = ee.ServiceAccountCredentials(
+                    service_account, str(key_file)
+                )
                 ee.Initialize(credentials=credentials, project=project_id)
             else:
                 ee.Authenticate()  # opens browser if needed; if already authed, it’s a no-op
@@ -47,4 +50,3 @@ class AuthenticationService:
             print("  $ earthengine authenticate")
             print("or use a service account via (service_account, key_file).")
             return False
-
