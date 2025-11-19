@@ -1,7 +1,7 @@
-
+import numpy as np
 import pandas as pd
 import logging
-from typing import Tuple
+from typing import Optional, Dict
 import ee
 
 # Assume logger and logging setup are configured elsewhere (as in your final code)
@@ -87,3 +87,55 @@ def convert_points_to_buffered_features(
     ]
     return ee.FeatureCollection(features)
     
+def merge_ee_sampling_results(
+    df: pd.DataFrame,
+    results: Optional[Dict],
+    column_map: Dict[str, str]
+) -> pd.DataFrame:
+    """
+    Generic helper to merge Earth Engine sampling output into a dataframe copy.
+
+    Args:
+        df: Original dataframe (index must match the 'index' property in EE features).
+        results: dict returned from fc_stats.getInfo().
+        column_map: mapping of {dataframe_column_name: ee_property_name}.
+        decimals: number of decimal places to round numeric results.
+
+    Returns:
+        A new dataframe with added/filled columns as specified in column_map.
+    """
+    merged = df.copy()
+
+    for col in column_map.keys():
+        merged[col] = np.nan
+
+    if not results:
+        return merged
+
+    features = results.get("features", [])
+    if not features:
+        return merged
+
+    parsed: Dict[object, Dict[str, float]] = {}
+
+    for f in features:
+        props = f.get("properties", {})
+        idx = props.get("index")
+        if idx is None or idx not in merged.index:
+            continue
+
+        parsed[idx] = {
+            df_col: props.get(ee_prop)
+            for df_col, ee_prop in column_map.items()
+        }
+
+    if parsed:
+        for df_col in column_map.keys():
+            series = pd.Series({idx: vals[df_col] for idx, vals in parsed.items()})
+            merged.loc[series.index, df_col] = series.values
+
+        for df_col in column_map.keys():
+            merged[df_col] = merged[df_col].round(3)
+
+    return merged
+

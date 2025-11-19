@@ -1,10 +1,9 @@
 import logging
-
 import ee
 import numpy as np
 import pandas as pd
-
-from typing import Optional, Callable, List, Dict
+from src.sampling import merge_ee_sampling_results
+from typing import Optional, Callable, Dict
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -23,7 +22,7 @@ def extract_ndvi(
     end_date: str = "2024-12-31",
     mask_water: bool = True,
     scale: int = 30,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, ee.Image]:
     """
     Batch-extract NDVI statistics (mean and sd) for buffered point locations.
     Args:
@@ -35,7 +34,10 @@ def extract_ndvi(
         mask_water: Whether to apply water masking using GLCF dataset.
         scale: Scale (in meters) for sampling NDVI values.
     Returns:
-        pd.DataFrame: DataFrame with NDVI_mean and NDVI_std columns added.
+        Tuple[pd.DataFrame, ee.Image]: 
+            result_df: pd.DataFrame: DataFrame with NDVI_mean and NDVI_std columns added.
+            ndvi_composite: ee.Image: The NDVI composite image used for extraction.
+
     """
     logger.info(f"Processing {len(df)} points...")
     logger.info(f"Date range: {start_date} to {end_date}")
@@ -43,10 +45,10 @@ def extract_ndvi(
     logger.info(f"Water masking: {mask_water}")
 
     logger.info("Creating Landsat composite for study area...")
-    composite = _build_ndvi_composite(aoi, start_date, end_date, mask_water)
+    ndvi_composite = _build_ndvi_composite(aoi, start_date, end_date, mask_water)
     
     logger.info("Extracting NDVI statistics for each sampling unit...")
-    extract_ndvi_stats = _build_ndvi_extractor(composite, scale)
+    extract_ndvi_stats = _build_ndvi_extractor(ndvi_composite, scale)
     ndvi_results = points_feature_collection.map(extract_ndvi_stats)
 
     logger.info("Fetching results from Earth Engine...")
@@ -56,7 +58,8 @@ def extract_ndvi(
     result_df = _merge_ndvi_results(df, results)
 
     _log_extraction_summary(result_df)
-    return result_df, composite
+    
+    return result_df, ndvi_composite
 
 def _build_ndvi_composite(
     aoi: ee.Geometry,
@@ -230,7 +233,7 @@ def _calculate_ndvi(
 def _build_ndvi_extractor(
     composite: ee.Image, 
     scale: float
-) -> Callable[[ee.Feature], ee.Feature]:
+) -> Callable[[ee.Feature], ee.Element]:
     """
     Return a function that samples NDVI mean/stdDev for a feature geometry.
     In this case the feature is expected to be a buffered sampling points.
@@ -244,7 +247,7 @@ def _build_ndvi_extractor(
         and returns the same feature with the NDVI mean and standard deviation added as properties.
     """
 
-    def extract_ndvi_stats(feature: ee.Feature) -> ee.Feature:
+    def extract_ndvi_stats(feature: ee.Feature) -> ee.Element:
         stats = composite.select("NDVI").reduceRegion(
             reducer=ee.Reducer.mean().combine(ee.Reducer.stdDev(), sharedInputs=True),
             geometry=feature.geometry(),
@@ -252,52 +255,23 @@ def _build_ndvi_extractor(
             maxPixels=1e9,
             bestEffort=True,
         )
-        return feature.set(
-            {"NDVI_mean": stats.get("NDVI_mean"), "NDVI_std": stats.get("NDVI_stdDev")}
-        )
+        return feature.set(stats)
 
     return extract_ndvi_stats
 
 def _merge_ndvi_results(
-    df: pd.DataFrame, 
-    results: Optional[List[Dict]]
+    df: pd.DataFrame,
+    results: Optional[Dict],
 ) -> pd.DataFrame:
     """
-    Merge Earth Engine sampling output into a dataframe copy.
-
-    Args:
-        df: pd.DataFrame, The dataframe to merge the results into.
-        results: Optional[List[Dict]], The list of features returned from the Earth Engine.
-
-    Returns:
-        pd.DataFrame, The dataframe with the merged results.
+    Merge NDVI sampling output into a dataframe copy.
+    Expects EE properties 'NDVI_mean' and 'NDVI_std'.
     """
-    merged = df.copy()
-    merged["NDVI_mean"] = np.nan
-    merged["NDVI_std"] = np.nan
-
-    if not results:
-        return merged
-
-    features = results.get("features", [])
-    if not features:
-        return merged
-
-    parsed = {
-        f["properties"]["index"]: {
-            "NDVI_mean": f["properties"].get("NDVI_mean"),
-            "NDVI_std": f["properties"].get("NDVI_std"),
-        }
-        for f in features
+    column_map = {
+        "NDVI_mean": "NDVI_mean",
+        "NDVI_std": "NDVI_stdDev",
     }
-
-    if parsed:
-        series_mean = pd.Series({k: v["NDVI_mean"] for k, v in parsed.items()})
-        series_std = pd.Series({k: v["NDVI_std"] for k, v in parsed.items()})
-        merged.loc[series_mean.index, "NDVI_mean"] = series_mean.values
-        merged.loc[series_std.index, "NDVI_std"] = series_std.values
-
-    return merged
+    return merge_ee_sampling_results(df, results, column_map)
 
 
 def _log_extraction_summary(

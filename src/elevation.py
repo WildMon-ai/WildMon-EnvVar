@@ -1,18 +1,32 @@
+import logging
+from typing import Callable, Dict, Optional, Tuple
+
 import ee
+import numpy as np
+import pandas as pd
+from src.sampling import merge_ee_sampling_results
+
+ELEVATION_COLLECTION_ID = "COPERNICUS/DEM/GLO30"
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def extract_elevation(
-    df,
-    lat_col: str = "latitude",
-    lon_col: str = "longitude",
-    buffer_radius: int = 200,
-    scale: int = 90,  # SRTM90_V4 → 90 m
-):
+    df: pd.DataFrame,
+    aoi: ee.Geometry,
+    points_feature_collection: ee.FeatureCollection,
+    scale: int = 30,
+) -> Tuple[pd.DataFrame, ee.Image]: 
     """
-    Extract elevation and slope statistics from SRTM90_V4 using optimized
-    Earth Engine processing (no batches).
+    Extract elevation and slope statistics (mean and standard deviation)
+    for buffered points using the COPERNICUS/DEM/GLO30 dataset.
+    
+    https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_DEM_GLO30
 
-    For each point, computes:
+    For each buffered point, computes:
         - elevation_mean: mean elevation (m) within the buffer
         - elevation_std:  std. dev. of elevation (m)
         - slope_mean:     mean slope (degrees)
@@ -20,88 +34,129 @@ def extract_elevation(
 
     Args:
         df: DataFrame with coordinates.
-        lat_col: Name of the latitude column.
-        lon_col: Name of the longitude column.
-        buffer_radius: Buffer radius in meters around each point.
-        scale: Processing scale in meters (default: 90 for SRTM90_V4).
+        aoi: ee.Geometry defining area of interest for clipping the DEM.
+        points_feature_collection: ee.FeatureCollection of buffered points.
+        scale: Scale (in meters) to use for reduction.
 
     Returns:
-        (result_df, elevation_image):
+        (result_df, elev_slope_image):
             result_df: original DataFrame with added elevation/slope columns.
-            elevation_image: SRTM elevation image used for the computation.
+            elev_slope_image: elevation and slope ee.Image used for the computation.
     """
+    logger.info(f"Processing {len(df)} points...")
+    logger.info(f"Scale: {scale}m")
 
-    result_df = df.copy()
+    logger.info("Loading SRTM elevation dataset...")
+    elevation_slope_image = _load_elevation_slope_composite(aoi)
 
-    # SRTM90_V4: main band is 'elevation' (meters)
-    elevation_image = ee.Image("CGIAR/SRTM90_V4").select("elevation")
+    logger.info("Extracting elevation and slope statistics...")
+    compute_elev_stats = _build_elevation_extractor(elevation_slope_image, scale)
+    fc_stats = points_feature_collection.map(compute_elev_stats)
 
-    # Terrain products: slope in degrees
-    # ee.Terrain.slope returns a single-band image 'slope'
-    slope_image = ee.Terrain.slope(elevation_image).rename("slope")
+    logger.info("Fetching results from Earth Engine...")
+    results = _fetch_elevation_results(fc_stats)
 
-    # Image with two bands: elevation (m) + slope (degrees)
-    elev_slope_image = elevation_image.addBands(slope_image)
+    logger.info("Merging elevation and slope values into dataframe...")
+    result_df = _merge_elevation_results(df, results)
 
-    # Validation
-    if lat_col not in df.columns or lon_col not in df.columns:
-        raise ValueError(f"Columns '{lat_col}' and/or '{lon_col}' not found in DataFrame")
+    _log_extraction_summary(result_df)
+    return result_df, elevation_slope_image
 
-    print(f"Processing {len(df)} points...")
+def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
+    """
+    Load COPERNICUS GLO30 DEM and slope, clipped to AOI.
+    Returns an image with bands: 'elevation', 'slope'.
+    """
+    dem_ic = (
+        ee.ImageCollection(ELEVATION_COLLECTION_ID)
+        .filterBounds(aoi)
+        .select("DEM")
+    )
 
-    # Create all features at once (buffer around each point)
-    features = [
-        ee.Feature(
-            ee.Geometry.Point([float(lon), float(lat)]).buffer(buffer_radius),
-            {"index": i}  # keep index for sorting later
-        )
-        for i, (lon, lat) in enumerate(zip(df[lon_col], df[lat_col]))
-    ]
+    elevation = dem_ic.mosaic().clip(aoi).rename("elevation")
 
-    fc = ee.FeatureCollection(features)
+    slope_ic = dem_ic.map(lambda img: ee.Terrain.slope(img).rename("slope"))
+    slope = slope_ic.mosaic().clip(aoi)
 
-    # Reduction function (elevation + slope, mean + stdDev)
-    def compute_stats(feature):
+    return elevation.addBands(slope)
+
+
+def _build_elevation_extractor(
+    elev_slope_image: ee.Image, scale: int
+) -> Callable[[ee.Feature], ee.Element]:
+    """Return a function that samples elevation and slope statistics for a feature."""
+
+    def extract_elevation_stats(feature: ee.Feature) -> ee.Element:
         stats = elev_slope_image.reduceRegion(
             reducer=ee.Reducer.mean().combine(
-                reducer2=ee.Reducer.stdDev(),
-                sharedInputs=True
+                reducer2=ee.Reducer.stdDev(), sharedInputs=True
             ),
             geometry=feature.geometry(),
             scale=scale,
+            maxPixels=1_000_000_000,
+            bestEffort=True,
         )
-        # stats will have keys:
-        # 'elevation_mean', 'elevation_stdDev',
-        # 'slope_mean',     'slope_stdDev'
         return feature.set(stats)
 
-    # Process everything at once
-    fc_stats = fc.map(compute_stats)
+    return extract_elevation_stats
 
-    print("🔄 Waiting for Earth Engine response...")
-    stats_info = fc_stats.getInfo()["features"]
 
-    # Keep original order using the 'index' property
-    elev_slope_data = sorted(
-        [(f["properties"]["index"], f["properties"]) for f in stats_info],
-        key=lambda x: x[0],
+def _fetch_elevation_results(
+    fc_stats: ee.FeatureCollection,
+) -> Optional[Dict]:
+    """Fetch sampled values from Earth Engine."""
+    try:
+        return fc_stats.getInfo()
+    except Exception as exc:  # pragma: no cover - Earth Engine failure path
+        logger.error(f"Failed to fetch elevation stats from Earth Engine: {exc}")
+        raise
+
+
+def _merge_elevation_results(
+    df: pd.DataFrame,
+    results: Optional[Dict],
+) -> pd.DataFrame:
+    """
+    Merge elevation/slope sampling output into a dataframe copy.
+    Expects EE properties:
+        - elevation_mean
+        - elevation_stdDev
+        - slope_mean
+        - slope_stdDev
+    """
+    column_map = {
+        "elevation_mean": "elevation_mean",
+        "elevation_std": "elevation_stdDev",
+        "slope_mean": "slope_mean",
+        "slope_std": "slope_stdDev",
+    }
+    return merge_ee_sampling_results(df, results, column_map)
+
+
+def _log_extraction_summary(result_df: pd.DataFrame) -> None:
+    """Log summary statistics for the extracted elevation and slope values."""
+    total_points = len(result_df)
+    valid_elevation = result_df["elevation_mean"].notna().sum()
+    valid_slope = result_df["slope_mean"].notna().sum()
+
+    logger.info(
+        f"Successfully processed {valid_elevation}/{total_points} points with elevation data"
+    )
+    logger.info(
+        f"Successfully processed {valid_slope}/{total_points} points with slope data"
     )
 
-    elevation_means = [props.get("elevation_mean") for _, props in elev_slope_data]
-    elevation_stds = [props.get("elevation_stdDev") for _, props in elev_slope_data]
-    slope_means = [props.get("slope_mean") for _, props in elev_slope_data]
-    slope_stds = [props.get("slope_stdDev") for _, props in elev_slope_data]
+    if valid_elevation > 0:
+        elev_values = result_df["elevation_mean"].dropna()
+        logger.info(
+            f"Elevation mean: {elev_values.mean():.2f} ± {elev_values.std():.2f} m "
+            f"(range {elev_values.min():.2f}-{elev_values.max():.2f} m)"
+        )
 
-    # Save into DataFrame
-    result_df["elevation_mean"] = elevation_means   # meters
-    result_df["elevation_std"] = elevation_stds     # meters
-    result_df["slope_mean"] = slope_means           # degrees
-    result_df["slope_std"] = slope_stds             # degrees
-
-    # Report null values
-    null_count = result_df["elevation_mean"].isna().sum()
-    if null_count > 0:
-        print(f"⚠️ {null_count} points without elevation/slope data")
-
-    print("✅ Elevation and slope statistics extracted (SRTM90_V4)!")
-    return result_df, elev_slope_image
+    if valid_slope > 0:
+        slope_values = result_df["slope_mean"].dropna()
+        logger.info(
+            "Slope mean: "
+            f"{slope_values.mean():.2f} ± {slope_values.std():.2f} deg "
+            f"(range {slope_values.min():.2f}-{slope_values.max():.2f} deg)"
+        )
