@@ -17,7 +17,7 @@ class AuthenticationService:
 
     @staticmethod
     def authenticate(
-        project_id: str = "wide-office-411000",
+        project_id: str = "wildmon-projects",
         service_account: Optional[str] = None,
         key_file: Optional[str | Path] = None,
     ) -> bool:
