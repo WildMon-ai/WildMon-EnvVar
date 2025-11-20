@@ -4,9 +4,10 @@ from typing import Callable, Dict, Optional, Tuple
 import ee
 import numpy as np
 import pandas as pd
-from src.sampling import merge_ee_sampling_results
+from src.sampling import merge_ee_sampling_results, build_variable_extractor
 
 ELEVATION_COLLECTION_ID = "COPERNICUS/DEM/GLO30"
+ELEVATION_BANDS = ["DEM", "slope"]
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -50,7 +51,10 @@ def extract_elevation(
     elevation_slope_image = _load_elevation_slope_composite(aoi)
 
     logger.info("Extracting elevation and slope statistics...")
-    compute_elev_stats = _build_elevation_extractor(elevation_slope_image, scale)
+    compute_elev_stats = build_variable_extractor(elevation_slope_image,
+                                                  ELEVATION_BANDS,
+                                                  scale)
+
     fc_stats = points_feature_collection.map(compute_elev_stats)
 
     logger.info("Fetching results from Earth Engine...")
@@ -70,12 +74,12 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
     dem_ic = (
         ee.ImageCollection(ELEVATION_COLLECTION_ID)
         .filterBounds(aoi)
-        .select("DEM")
+        .select(ELEVATION_BANDS[0])
     )
 
-    elevation = dem_ic.mosaic().clip(aoi).rename("elevation")
+    elevation = dem_ic.mosaic().clip(aoi).rename(ELEVATION_BANDS[0])
 
-    slope_ic = dem_ic.map(lambda img: ee.Terrain.slope(img).rename("slope"))
+    slope_ic = dem_ic.map(lambda img: ee.Terrain.slope(img))
     slope = slope_ic.mosaic().clip(aoi)
 
     return elevation.addBands(slope)
@@ -125,8 +129,8 @@ def _merge_elevation_results(
         - slope_stdDev
     """
     column_map = {
-        "elevation_mean": "elevation_mean",
-        "elevation_std": "elevation_stdDev",
+        "elevation_mean": f"{ELEVATION_BANDS[0]}_mean",
+        "elevation_std": f"{ELEVATION_BANDS[0]}_stdDev",
         "slope_mean": "slope_mean",
         "slope_std": "slope_stdDev",
     }

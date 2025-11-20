@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Callable, List
 import ee
 
 # Assume logger and logging setup are configured elsewhere (as in your final code)
@@ -139,3 +139,34 @@ def merge_ee_sampling_results(
 
     return merged
 
+def build_variable_extractor(
+    layer_image: ee.Image,
+    image_bands: List[str],
+    scale: int,
+) -> Callable[[ee.Feature], ee.Element]:
+    """
+    Return a function that samples image statistics (mean and standard deviation) for a feature geometry
+    (e.g. a set of buffered sampling points).
+
+    Args:
+        layer_image: ee.Image containing the bands of interest.
+        image_bands: List of str containing the band names.
+        scale: int, The scale at which the sampling will be done.
+
+    Returns:
+        Callable[[ee.Feature], ee.Element], A function that takes an ee.Feature,
+        and returns the same feature with the image statistics added as properties.
+    """
+    def compute_stats(feature: ee.Feature) -> ee.Element:
+        stats = layer_image.select(image_bands).reduceRegion(
+            reducer=ee.Reducer.mean().combine(
+                reducer2=ee.Reducer.stdDev(), sharedInputs=True
+            ),
+            geometry=feature.geometry(),
+            scale=scale,
+            maxPixels=1_000_000_000,
+            bestEffort=True,
+        )
+        return feature.set(stats)
+
+    return compute_stats

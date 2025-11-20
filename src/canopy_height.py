@@ -1,70 +1,110 @@
+import logging
+from typing import Dict, Optional, Tuple
+
 import ee
 import pandas as pd
-import numpy as np
+
+from src.sampling import merge_ee_sampling_results, build_variable_extractor
+
+CANOPY_DATASET_ID = "users/nlang/ETH_GlobalCanopyHeight_2020_10m_v1"
+CANOPY_BAND = ["b1"]
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def extract_canopy_height(
     df: pd.DataFrame,
-    lat_col: str = "latitude",
-    lon_col: str = "longitude",
-    buffer_distance: float = 200,
-    scale: float = 10,
-    batch_size: int = 50,
+    aoi: ee.Geometry,
+    points_feature_collection: ee.FeatureCollection,
+    scale: int = 10,
+) -> Tuple[pd.DataFrame, ee.Image]:
+    """
+    Extract canopy height statistics (mean and standard deviation) for buffered points.
+
+    Args:
+        df: DataFrame with coordinates.
+        aoi: ee.Geometry defining the area of interest used to crop the canopy height image.
+        points_feature_collection: ee.FeatureCollection of buffered sampling units.
+        scale: Scale (in meters) for sampling.
+
+    Returns:
+        (result_df, canopy_height_image):
+            result_df: Original DataFrame with canopy_height_mean/std columns.
+            canopy_height_image: ee.Image used for sampling.
+    """
+    logger.info(f"Processing {len(df)} points...")
+    logger.info(f"Scale: {scale}m")
+
+    logger.info("Loading ETH Global Canopy Height dataset...")
+    canopy_height_image = _load_canopy_height_image(aoi)
+
+    logger.info("Extracting canopy height statistics...")
+    compute_canopy_stats = build_variable_extractor(canopy_height_image, CANOPY_BAND, scale)
+    fc_stats = points_feature_collection.map(compute_canopy_stats)
+
+    logger.info("Fetching results from Earth Engine...")
+    results = _fetch_canopy_height_results(fc_stats)
+
+    logger.info("Merging canopy height values into dataframe...")
+    result_df = _merge_canopy_height_results(df, results)
+
+    _log_extraction_summary(result_df)
+    return result_df, canopy_height_image
+
+
+def _load_canopy_height_image(aoi: ee.Geometry) -> ee.Image:
+    """
+    Load the Canopy Height dataset, selecting the band of interest and clipping to the given AOIs.
+
+    Args:
+        aoi: ee.Geometry defining the area of interest to crop the dataset and reduce processing.
+    Returns:
+        ee.Image containing the canopy height data for the given AOIs.
+    """
+    return ee.Image(CANOPY_DATASET_ID).select(CANOPY_BAND).clip(aoi)
+
+
+def _fetch_canopy_height_results(
+    fc_stats: ee.FeatureCollection,
+) -> Optional[Dict]:
+    """Fetch canopy sampling results from Earth Engine."""
+    try:
+        return fc_stats.getInfo()
+    except Exception as exc:  # pragma: no cover - Earth Engine failure path
+        logger.error(f"Failed to fetch canopy height stats from Earth Engine: {exc}")
+        raise
+
+
+def _merge_canopy_height_results(
+    df: pd.DataFrame,
+    results: Optional[Dict],
 ) -> pd.DataFrame:
+    """Merge canopy height sampling output into a dataframe copy."""
+    column_map = {
+        "canopy_height_mean": f"{CANOPY_BAND[0]}_mean",
+        "canopy_height_std": f"{CANOPY_BAND[0]}_stdDev",
+    }
+    return merge_ee_sampling_results(df, results, column_map)
 
-    dataset_id = "users/nlang/ETH_GlobalCanopyHeight_2020_10m_v1"
-    band_name = "b1"
-    image = ee.Image(dataset_id).select(band_name)
 
-    result_df = df.copy()
-    all_mean_heights = []
-    all_std_heights = []
-    all_buffers = []
+def _log_extraction_summary(result_df: pd.DataFrame) -> None:
+    """Log summary statistics for the extracted canopy height values."""
+    total_points = len(result_df)
+    valid_points = result_df["canopy_height_mean"].notna().sum()
 
-    total_batches = (len(df) + batch_size - 1) // batch_size
-    print(
-        f"📦 Processing {len(df)} points in {total_batches} batches of {batch_size}..."
+    logger.info(
+        f"Successfully processed {valid_points}/{total_points} points with canopy data"
     )
 
-    for start in range(0, len(df), batch_size):
-        end = min(start + batch_size, len(df))
-        batch = df.iloc[start:end]
+    if valid_points == 0:
+        return
 
-        # Build list of features with buffer geometry
-        features = []
-        for lon, lat in zip(batch[lon_col], batch[lat_col]):
-            point = ee.Geometry.Point([lon, lat])
-            buffer = point.buffer(buffer_distance)
-            feature = ee.Feature(buffer)
-            features.append(feature)
-            all_buffers.append(buffer)
-
-        fc = ee.FeatureCollection(features)
-
-        def compute_stats(feat):
-            stat = image.reduceRegion(
-                reducer=ee.Reducer.mean().combine(
-                    ee.Reducer.stdDev(), sharedInputs=True
-                ),
-                geometry=feat.geometry(),
-                scale=scale,
-                maxPixels=1e9,
-                bestEffort=True,
-            )
-            return feat.set(stat)
-
-        fc_stats = fc.map(compute_stats).getInfo()
-
-        for feat in fc_stats["features"]:
-            props = feat["properties"]
-            all_mean_heights.append(props.get(f"{band_name}_mean", np.nan))
-            all_std_heights.append(props.get(f"{band_name}_stdDev", np.nan))
-
-        print(f"  ✅ Batch {start // batch_size + 1} processed ({start + 1}-{end})")
-
-    # Append stats to dataframe
-    result_df["canopy_height_mean"] = all_mean_heights
-    result_df["canopy_height_std"] = all_std_heights
-
-
-    return result_df, image
+    canopy_values = result_df["canopy_height_mean"].dropna()
+    logger.info(
+        "Canopy height mean: "
+        f"{canopy_values.mean():.2f} ± {canopy_values.std():.2f} m "
+        f"(range {canopy_values.min():.2f}-{canopy_values.max():.2f} m)"
+    )

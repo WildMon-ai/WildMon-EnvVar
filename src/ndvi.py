@@ -1,8 +1,7 @@
 import logging
 import ee
-import numpy as np
 import pandas as pd
-from src.sampling import merge_ee_sampling_results
+from src.sampling import merge_ee_sampling_results, build_variable_extractor
 from typing import Optional, Callable, Dict
 
 logging.basicConfig(
@@ -12,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 NDVI_COLLECTION_ID = "LANDSAT/LC09/C02/T1_L2"
 WATER_MASK_COLLECTION_ID = "GLCF/GLS_WATER"
+NDVI_BAND = "NDVI"
 
 
 def extract_ndvi(
@@ -48,7 +48,7 @@ def extract_ndvi(
     ndvi_composite = _build_ndvi_composite(aoi, start_date, end_date, mask_water)
     
     logger.info("Extracting NDVI statistics for each sampling unit...")
-    extract_ndvi_stats = _build_ndvi_extractor(ndvi_composite, scale)
+    extract_ndvi_stats = build_variable_extractor(ndvi_composite, [NDVI_BAND], scale)
     ndvi_results = points_feature_collection.map(extract_ndvi_stats)
 
     logger.info("Fetching results from Earth Engine...")
@@ -228,36 +228,6 @@ def _calculate_ndvi(
     ndvi_mask = valid_denom.And(valid_range)
 
     return ndvi_raw.updateMask(ndvi_mask).rename("NDVI")
-
-
-def _build_ndvi_extractor(
-    composite: ee.Image, 
-    scale: float
-) -> Callable[[ee.Feature], ee.Element]:
-    """
-    Return a function that samples NDVI mean/stdDev for a feature geometry.
-    In this case the feature is expected to be a buffered sampling points.
-
-    Args:
-        composite: ee.Image containing the NDVI band.
-        scale: float, The scale at which the sampling will be done.
-
-    Returns:
-        Callable[[ee.Feature], ee.Feature], A function that takes an ee.Feature,
-        and returns the same feature with the NDVI mean and standard deviation added as properties.
-    """
-
-    def extract_ndvi_stats(feature: ee.Feature) -> ee.Element:
-        stats = composite.select("NDVI").reduceRegion(
-            reducer=ee.Reducer.mean().combine(ee.Reducer.stdDev(), sharedInputs=True),
-            geometry=feature.geometry(),
-            scale=scale,
-            maxPixels=1e9,
-            bestEffort=True,
-        )
-        return feature.set(stats)
-
-    return extract_ndvi_stats
 
 def _merge_ndvi_results(
     df: pd.DataFrame,
