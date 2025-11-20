@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import ee
 import pandas as pd
@@ -72,7 +72,7 @@ def extract_worldclim(
     compute_bioclim_stats = build_variable_extractor(worldclim_image,
                                                      selected_variables,
                                                      scale)
-    # compute_bioclim_stats = _build_worldclim_extractor(worldclim_image, scale)
+    
     fc_stats = points_feature_collection.map(compute_bioclim_stats)
 
     logger.info("Fetching results from Earth Engine...")
@@ -107,27 +107,6 @@ def _load_worldclim_image(aoi: ee.Geometry, variables: List[str]) -> ee.Image:
         for var in variables
     ]
     return ee.Image.cat(scaled_bands).clip(aoi)
-
-
-# def _build_worldclim_extractor(
-#     worldclim_image: ee.Image, scale: int
-# ) -> Callable[[ee.Feature], ee.Element]:
-#     """Return a reducer function that samples WorldClim mean/stdDev for a feature."""
-
-#     def extract_bioclim_stats(feature: ee.Feature) -> ee.Element:
-#         stats = worldclim_image.reduceRegion(
-#             reducer=ee.Reducer.mean().combine(
-#                 reducer2=ee.Reducer.stdDev(), sharedInputs=True
-#             ),
-#             geometry=feature.geometry(),
-#             scale=scale,
-#             maxPixels=1_000_000_000,
-#             bestEffort=True,
-#         )
-#         return feature.set(stats)
-
-#     return extract_bioclim_stats
-
 
 def _fetch_worldclim_results(
     fc_stats: ee.FeatureCollection,

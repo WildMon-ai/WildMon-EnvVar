@@ -80,7 +80,14 @@ def _load_worldcover_image(
     start_year: int,
     end_year: int,
 ) -> ee.Image:
-    """Load the ESA WorldCover mosaic for the requested time range and clip to the AOI."""
+    """Load the ESA WorldCover mosaic for the requested time range and clip to the AOI.
+
+    Args:
+        aoi: ee.Geometry defining the area of interest for clipping the WorldCover image.
+        start_year: Inclusive start year for the landcover mosaic.
+        end_year: Exclusive end year (matches Earth Engine filtering semantics).
+    Returns:
+        landcover_image: ee.Image clipped to the AOI."""
     image = (
         ee.ImageCollection(LANDCOVER_COLLECTION_ID)
         .filterDate(f"{start_year}-01-01", f"{end_year}-01-01")
@@ -96,10 +103,17 @@ def _build_landcover_extractor(
     landcover_image: ee.Image,
     scale: int,
 ):
-    """Build a reducer function returning dominant class and per-class proportions."""
-    band = LANDCOVER_BAND
+    """Build a reducer function returning dominant class and per-class proportions.
+    This function combines two statistics: mode (dominant class) and proportion of each class
+    in the buffered area. First, it computes a histogram of class frequencies, then derives
+    proportions from the histogram counts.
+    Args:
+        landcover_image: ee.Image containing the landcover data.
+        scale: Scale in meters for the sampling reducer.
+    Returns:
+        extract: Function that takes an ee.Feature and returns an ee.Element with stats."""
 
-    def extract(feature: ee.Feature) -> ee.Element:
+    def _compute_stats(feature: ee.Feature) -> ee.Element:
         reducer = ee.Reducer.mode().combine(
             reducer2=ee.Reducer.frequencyHistogram(),
             sharedInputs=True,
@@ -114,7 +128,7 @@ def _build_landcover_extractor(
         )
 
         stats_dict = ee.Dictionary(stats)
-        histogram_key = f"{band}_histogram"
+        histogram_key = f"{LANDCOVER_BAND}_histogram"
         histogram = ee.Dictionary(
             ee.Algorithms.If(
                 stats_dict.contains(histogram_key),
@@ -131,7 +145,11 @@ def _build_landcover_extractor(
             )
         )
 
-        def compute_proportion(class_code: int):
+        def _compute_proportion(class_code: int):
+            """"
+            Compute the proportion of pixels for a given class code.
+            Returns None if there are no pixels in the area.
+            """
             key = ee.String(str(class_code))
             class_count = ee.Number(
                 ee.Algorithms.If(
@@ -147,15 +165,15 @@ def _build_landcover_extractor(
             )
 
         properties: Dict[str, object] = {
-            "landcover_dominant_code": stats_dict.get(f"{band}_mode"),
+            "landcover_dominant_code": stats_dict.get(f"{LANDCOVER_BAND}_mode"),
         }
 
         for class_code, label in LANDCOVER_CLASSES.items():
-            properties[f"landcover_prop_{label}"] = compute_proportion(class_code)
+            properties[f"landcover_prop_{label}"] = _compute_proportion(class_code)
 
         return feature.set(properties)
 
-    return extract
+    return _compute_stats
 
 
 def _fetch_landcover_results(
@@ -184,20 +202,25 @@ def _merge_landcover_results(
 
 def _add_dominant_labels(result_df: pd.DataFrame) -> pd.DataFrame:
     """Append a human-readable label for the dominant class."""
-    if "landcover_dominant_code" not in result_df.columns:
+    code_col = "landcover_dominant_code"
+    if code_col not in result_df.columns:
         return result_df
 
     labeled = result_df.copy()
-    labeled["landcover_dominant_label"] = labeled["landcover_dominant_code"].map(
-        LANDCOVER_CLASSES
-    )
+    labeled["landcover_dominant_label"] = labeled[code_col].map(LANDCOVER_CLASSES)
+    labeled = labeled.drop(columns=[code_col])
     return labeled
 
 
 def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     """Log summary information about extraction success and class distribution."""
     total_points = len(result_df)
-    valid_mask = result_df["landcover_dominant_code"].notna()
+    label_col = "landcover_dominant_label"
+    if label_col not in result_df.columns:
+        logger.info("No dominant landcover label column found; skipping summary.")
+        return
+
+    valid_mask = result_df[label_col].notna()
     valid_points = valid_mask.sum()
 
     logger.info(
@@ -207,9 +230,8 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     if valid_points == 0:
         return
 
-    if "landcover_dominant_label" in result_df.columns:
-        counts = result_df.loc[valid_mask, "landcover_dominant_label"].value_counts()
-        logger.info("Dominant landcover distribution:")
-        for label, count in counts.items():
-            share = (count / valid_points) * 100
-            logger.info(f"  {label}: {count} points ({share:.1f}%)")
+    counts = result_df.loc[valid_mask, label_col].value_counts()
+    logger.info("Dominant landcover distribution:")
+    for label, count in counts.items():
+        share = (count / valid_points) * 100
+        logger.info(f"  {label}: {count} points ({share:.1f}%)")
