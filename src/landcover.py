@@ -33,8 +33,6 @@ def extract_landcover(
     df: pd.DataFrame,
     aoi: ee.Geometry,
     points_feature_collection: ee.FeatureCollection,
-    start_year: int = 2021,
-    end_year: int = 2025,
     scale: int = 10,
 ) -> Tuple[pd.DataFrame, ee.Image]:
     """
@@ -44,8 +42,6 @@ def extract_landcover(
         df: DataFrame aligned with the buffered feature collection (index preserved).
         aoi: ee.Geometry defining the project area to clip the landcover image.
         points_feature_collection: ee.FeatureCollection of buffered sampling units.
-        start_year: Inclusive start year for the landcover mosaic.
-        end_year: Exclusive end year (matches Earth Engine filtering semantics).
         scale: Scale (meters) for reductions. ESA WorldCover native resolution is 10 m.
 
     Returns:
@@ -54,11 +50,11 @@ def extract_landcover(
             landcover_image: ee.Image used for sampling.
     """
     logger.info(f"Processing {len(df)} points...")
-    logger.info(f"Time period: {start_year}-{end_year}")
+    logger.info("Date range: 2021")
     logger.info(f"Scale: {scale}m")
 
     logger.info("Loading ESA WorldCover composite for study area...")
-    landcover_image = _load_worldcover_image(aoi, start_year, end_year)
+    landcover_image = _load_worldcover_image(aoi)
 
     logger.info("Extracting dominant landcover and class proportions...")
     compute_landcover_stats = _build_landcover_extractor(landcover_image, scale)
@@ -77,25 +73,20 @@ def extract_landcover(
 
 def _load_worldcover_image(
     aoi: ee.Geometry,
-    start_year: int,
-    end_year: int,
 ) -> ee.Image:
     """Load the ESA WorldCover mosaic for the requested time range and clip to the AOI.
 
     Args:
         aoi: ee.Geometry defining the area of interest for clipping the WorldCover image.
-        start_year: Inclusive start year for the landcover mosaic.
-        end_year: Exclusive end year (matches Earth Engine filtering semantics).
     Returns:
         landcover_image: ee.Image clipped to the AOI."""
     image = (
         ee.ImageCollection(LANDCOVER_COLLECTION_ID)
-        .filterDate(f"{start_year}-01-01", f"{end_year}-01-01")
         .first()
         .select(LANDCOVER_BAND)
     )
     if image is None:
-        raise ValueError("ESA WorldCover dataset returned no imagery for the selected years.")
+        raise ValueError("ESA WorldCover dataset returned no imagery")
     return image.clip(aoi)
 
 
