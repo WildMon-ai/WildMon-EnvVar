@@ -1,13 +1,15 @@
 import logging
-from typing import Callable, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import ee
-import numpy as np
 import pandas as pd
+import math
 from src.sampling import merge_ee_sampling_results, build_variable_extractor
 
 ELEVATION_COLLECTION_ID = "COPERNICUS/DEM/GLO30"
-ELEVATION_BANDS = ["DEM", "slope"]
+ELEVATION_BANDS = ["DEM", "slope_percent"]
+DEG_TO_RAD = math.pi / 180.0
+
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -68,8 +70,11 @@ def extract_elevation(
 
 def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
     """
-    Load COPERNICUS GLO30 DEM and slope, clipped to AOI.
-    Returns an image with bands: 'elevation', 'slope'.
+    Load COPERNICUS GLO30 DEM and derive slope, clipped to AOI.
+
+    Returns an ee.Image with bands:
+        - 'elevation'      (meters above sea level)
+        - 'slope_percent'  (percent rise/run)
     """
     dem_ic = (
         ee.ImageCollection(ELEVATION_COLLECTION_ID)
@@ -77,32 +82,36 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
         .select(ELEVATION_BANDS[0])
     )
 
-    elevation = dem_ic.mosaic().clip(aoi).rename(ELEVATION_BANDS[0])
+    elevation = (
+        dem_ic
+        .median()
+        .clip(aoi)
+    )
 
-    slope_ic = dem_ic.map(lambda img: ee.Terrain.slope(img))
-    slope = slope_ic.mosaic().clip(aoi)
+    slope_ic = dem_ic.map(_per_tile_slope_percent)
+    slope = slope_ic.median().clip(aoi)
 
+    # Composite: elevation + slope_percent
     return elevation.addBands(slope)
 
+def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
+    """
+    Compute slope in percent for a single DEM tile.
+    Input: DEM heights in meters.
+    Output band name: 'slope_percent'.
+    """
+    slope_deg = ee.Terrain.slope(img)           # degrees
+    slope_pct = _slope_deg_to_percent(slope_deg)
+    return slope_pct.rename(ELEVATION_BANDS[1])  # 'slope_percent'
 
-def _build_elevation_extractor(
-    elev_slope_image: ee.Image, scale: int
-) -> Callable[[ee.Feature], ee.Element]:
-    """Return a function that samples elevation and slope statistics for a feature."""
-
-    def extract_elevation_stats(feature: ee.Feature) -> ee.Element:
-        stats = elev_slope_image.reduceRegion(
-            reducer=ee.Reducer.mean().combine(
-                reducer2=ee.Reducer.stdDev(), sharedInputs=True
-            ),
-            geometry=feature.geometry(),
-            scale=scale,
-            maxPixels=1_000_000_000,
-            bestEffort=True,
-        )
-        return feature.set(stats)
-
-    return extract_elevation_stats
+def _slope_deg_to_percent(slope_deg: ee.Image) -> ee.Image:
+    """Convert slope from degrees to percent (rise/run * 100)."""
+    return (
+        slope_deg
+        .multiply(DEG_TO_RAD)   # deg -> rad
+        .tan()
+        .multiply(100.0)
+   )
 
 
 def _fetch_elevation_results(
@@ -131,9 +140,10 @@ def _merge_elevation_results(
     column_map = {
         "elevation_mean": f"{ELEVATION_BANDS[0]}_mean",
         "elevation_std": f"{ELEVATION_BANDS[0]}_stdDev",
-        "slope_mean": "slope_mean",
-        "slope_std": "slope_stdDev",
+        "slope_percent_mean": f"{ELEVATION_BANDS[1]}_mean",
+        "slope_percent_std": f"{ELEVATION_BANDS[1]}_stdDev",
     }
+    
     return merge_ee_sampling_results(df, results, column_map)
 
 
@@ -141,7 +151,7 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     """Log summary statistics for the extracted elevation and slope values."""
     total_points = len(result_df)
     valid_elevation = result_df["elevation_mean"].notna().sum()
-    valid_slope = result_df["slope_mean"].notna().sum()
+    valid_slope = result_df["slope_percent_mean"].notna().sum()
 
     logger.info(
         f"Successfully processed {valid_elevation}/{total_points} points with elevation data"
@@ -158,7 +168,7 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
         )
 
     if valid_slope > 0:
-        slope_values = result_df["slope_mean"].dropna()
+        slope_values = result_df["slope_percent_mean"].dropna()
         logger.info(
             "Slope mean: "
             f"{slope_values.mean():.2f} ± {slope_values.std():.2f} deg "
