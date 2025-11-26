@@ -21,6 +21,7 @@ def extract_ndvi(
     start_date: str = "2021-11-01",
     end_date: str = "2024-12-31",
     mask_water: bool = True,
+    cloud_cover_threshold: int = 50,
     scale: int = 30,
 ) -> tuple[pd.DataFrame, ee.Image]:
     """
@@ -32,6 +33,7 @@ def extract_ndvi(
         start_date: Start date for Landsat imagery (YYYY-MM-DD).
         end_date: End date for Landsat imagery (YYYY-MM-DD).
         mask_water: Whether to apply water masking using GLCF dataset.
+        cloud_cover_threshold: Maximum cloud cover percentage to filter Landsat images.
         scale: Scale (in meters) for sampling NDVI values.
     Returns:
         Tuple[pd.DataFrame, ee.Image]: 
@@ -45,7 +47,7 @@ def extract_ndvi(
     logger.info(f"Water masking: {mask_water}")
 
     logger.info("Creating Landsat composite for study area...")
-    ndvi_composite = _build_ndvi_composite(aoi, start_date, end_date, mask_water)
+    ndvi_composite = _build_ndvi_composite(aoi, start_date, end_date, mask_water, cloud_cover_threshold)
     
     logger.info("Extracting NDVI statistics for each sampling unit...")
     extract_ndvi_stats = build_variable_extractor(ndvi_composite, [NDVI_BAND], scale)
@@ -66,6 +68,7 @@ def _build_ndvi_composite(
     start_date: str = "2021-11-01",
     end_date: str = "2024-12-31",
     mask_water: bool = True,
+    cloud_cover_threshold: int = 50,
 ) -> ee.Image:
     """
     Create a single composite for the entire AOI by doing a series of processing operations.
@@ -80,16 +83,23 @@ def _build_ndvi_composite(
         start_date: Start date for Landsat imagery (YYYY-MM-DD).
         end_date: End date for Landsat imagery (YYYY-MM-DD).
         mask_water: Whether to apply water masking using GLCF dataset.
+        cloud_cover_threshold: Maximum cloud cover percentage to filter Landsat images.
 
     Returns:
         ee.Image containing NDVI band.
     """
-    collection = _load_and_filter_landsat_collection(aoi, start_date, end_date)
+    collection = _load_and_filter_landsat_collection(aoi,
+                                                     start_date,
+                                                     end_date,
+                                                     cloud_cover_threshold)
     base_projection = collection.first().projection()
-    water_mask = _load_water_mask(aoi, base_projection) if mask_water else None
+    water_mask = _load_water_mask(aoi,
+                                  base_projection) if mask_water else None
 
     composite = collection.map(
-        lambda img: _process_landsat_image(img, mask_water, water_mask)
+        lambda img: _process_landsat_image(img,
+                                           mask_water,
+                                           water_mask)
     ).median()
 
     if mask_water and water_mask is not None:
@@ -102,6 +112,7 @@ def _load_and_filter_landsat_collection(
     aoi: ee.Geometry,  
     start_date: str,  
     end_date: str,
+    cloud_cover_threshold: int = 50,
 ) -> ee.ImageCollection:
     """Load Landsat imagery filtered by AOI, date, and cloud cover.
 
@@ -117,7 +128,7 @@ def _load_and_filter_landsat_collection(
         ee.ImageCollection(NDVI_COLLECTION_ID)
         .filterBounds(aoi)
         .filterDate(start_date, end_date)
-        .filter(ee.Filter.lt("CLOUD_COVER", 50))  # Cloud cover < 50%
+        .filter(ee.Filter.lt("CLOUD_COVER", cloud_cover_threshold))  # Cloud cover < 50%
     )
 
     size = collection.size().getInfo()
