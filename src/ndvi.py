@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 NDVI_COLLECTION_ID = "LANDSAT/LC09/C02/T1_L2"
 WATER_MASK_COLLECTION_ID = "GLCF/GLS_WATER"
-NDVI_BAND = "NDVI"
+NDVI_BAND = "ndvi"
 
 
 def extract_ndvi(
@@ -95,7 +95,7 @@ def _build_ndvi_composite(
     if mask_water and water_mask is not None:
         composite = composite.updateMask(water_mask)
 
-    return composite.select(["NDVI"]).reproject(base_projection).clip(aoi)
+    return composite.select([NDVI_BAND]).reproject(base_projection).clip(aoi)
 
 
 def _load_and_filter_landsat_collection(
@@ -230,7 +230,7 @@ def _calculate_ndvi(
     valid_range = ndvi_raw.gte(-1).And(ndvi_raw.lte(1))
     ndvi_mask = valid_denom.And(valid_range)
 
-    return ndvi_raw.updateMask(ndvi_mask).rename("NDVI")
+    return ndvi_raw.updateMask(ndvi_mask).rename(NDVI_BAND)
 
 def _merge_ndvi_results(
     df: pd.DataFrame,
@@ -241,8 +241,8 @@ def _merge_ndvi_results(
     Expects EE properties 'NDVI_mean' and 'NDVI_std'.
     """
     column_map = {
-        "NDVI_mean": "NDVI_mean",
-        "NDVI_std": "NDVI_stdDev",
+        "NDVI_mean": f"{NDVI_BAND}_mean",
+        "NDVI_std": f"{NDVI_BAND}_stdDev",
     }
     return merge_ee_sampling_results(df, results, column_map)
 

@@ -7,7 +7,8 @@ import pandas as pd
 from src.sampling import merge_ee_sampling_results
 
 LANDCOVER_COLLECTION_ID = "ESA/WorldCover/v200"
-LANDCOVER_BAND = "Map"
+LANDCOVER_SOURCE_BAND = "Map"
+LANDCOVER_BAND = "land_cover"
 
 LANDCOVER_CLASSES: Dict[int, str] = {
     10: "Tree_cover",
@@ -83,7 +84,8 @@ def _load_worldcover_image(
     image = (
         ee.ImageCollection(LANDCOVER_COLLECTION_ID)
         .first()
-        .select(LANDCOVER_BAND)
+        .select(LANDCOVER_SOURCE_BAND)
+        .rename(LANDCOVER_BAND)
     )
     if image is None:
         raise ValueError("ESA WorldCover dataset returned no imagery")

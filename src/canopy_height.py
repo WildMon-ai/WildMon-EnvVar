@@ -7,7 +7,8 @@ import pandas as pd
 from src.sampling import merge_ee_sampling_results, build_variable_extractor
 
 CANOPY_DATASET_ID = "users/nlang/ETH_GlobalCanopyHeight_2020_10m_v1"
-CANOPY_BAND = ["b1"]
+CANOPY_SOURCE_BAND = "b1"
+CANOPY_BAND = "canopy_height"
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -42,7 +43,9 @@ def extract_canopy_height(
     canopy_height_image = _load_canopy_height_image(aoi)
 
     logger.info("Extracting canopy height statistics...")
-    compute_canopy_stats = build_variable_extractor(canopy_height_image, CANOPY_BAND, scale)
+    compute_canopy_stats = build_variable_extractor(
+        canopy_height_image, [CANOPY_BAND], scale
+    )
     fc_stats = points_feature_collection.map(compute_canopy_stats)
 
     logger.info("Fetching results from Earth Engine...")
@@ -64,7 +67,12 @@ def _load_canopy_height_image(aoi: ee.Geometry) -> ee.Image:
     Returns:
         ee.Image containing the canopy height data for the given AOIs.
     """
-    return ee.Image(CANOPY_DATASET_ID).select(CANOPY_BAND).clip(aoi)
+    return (
+        ee.Image(CANOPY_DATASET_ID)
+        .select(CANOPY_SOURCE_BAND)
+        .rename(CANOPY_BAND)
+        .clip(aoi)
+    )
 
 
 def _fetch_canopy_height_results(
@@ -84,8 +92,8 @@ def _merge_canopy_height_results(
 ) -> pd.DataFrame:
     """Merge canopy height sampling output into a dataframe copy."""
     column_map = {
-        "canopy_height_mean": f"{CANOPY_BAND[0]}_mean",
-        "canopy_height_std": f"{CANOPY_BAND[0]}_stdDev",
+        "canopy_height_mean": f"{CANOPY_BAND}_mean",
+        "canopy_height_std": f"{CANOPY_BAND}_stdDev",
     }
     return merge_ee_sampling_results(df, results, column_map)
 

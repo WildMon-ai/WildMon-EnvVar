@@ -7,7 +7,8 @@ import pandas as pd
 from src.sampling import build_variable_extractor, merge_ee_sampling_results
 
 BIOMASS_COLLECTION_ID = "projects/sat-io/open-datasets/ESA/ESA_CCI_AGB"
-BIOMASS_BAND = "AGB"
+BIOMASS_SOURCE_BAND = "AGB"
+BIOMASS_BAND = "agb"
 DEFAULT_SCALE = 100
 AVAILABLE_YEARS = [
     2007,
@@ -95,7 +96,7 @@ def _load_biomass_image(
         ee.ImageCollection(BIOMASS_COLLECTION_ID)
         .filterBounds(aoi)
         .filterDate(start_date, end_date)
-        .select(BIOMASS_BAND)
+        .select(BIOMASS_SOURCE_BAND)
     )
 
     size = collection.size()
@@ -105,7 +106,7 @@ def _load_biomass_image(
         )
 
     image = collection.sort("system:time_start", False).first()
-    return ee.Image(image).clip(aoi)
+    return ee.Image(image).rename(BIOMASS_BAND).clip(aoi)
 
 
 def _fetch_biomass_results(

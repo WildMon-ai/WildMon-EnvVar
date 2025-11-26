@@ -7,7 +7,10 @@ import math
 from src.sampling import merge_ee_sampling_results, build_variable_extractor
 
 ELEVATION_COLLECTION_ID = "COPERNICUS/DEM/GLO30"
-ELEVATION_BANDS = ["DEM", "slope_percent"]
+ELEVATION_SOURCE_BAND = "DEM"
+ELEVATION_BAND = "elevation"
+SLOPE_BAND = "slope_percent"
+ELEVATION_BANDS = [ELEVATION_BAND, SLOPE_BAND]
 DEG_TO_RAD = math.pi / 180.0
 
 
@@ -79,21 +82,17 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
     dem_ic = (
         ee.ImageCollection(ELEVATION_COLLECTION_ID)
         .filterBounds(aoi)
-        .select(ELEVATION_BANDS[0])
+        .select(ELEVATION_SOURCE_BAND)
     )
 
-    elevation = (
-        dem_ic
-        .median()
-        .clip(aoi)
-    )
+    elevation = dem_ic.median().rename(ELEVATION_BAND).toFloat()
 
     # I haven't fully understood why a map is necessary to compute slope here,
     # but it doesnt work correctly otherwise.
     slope_ic = dem_ic.map(_per_tile_slope_percent)
-    slope = slope_ic.median().clip(aoi)
+    slope = slope_ic.median().toFloat()
 
-    return elevation.addBands(slope)
+    return elevation.addBands(slope).clip(aoi)
 
 def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
     """
@@ -103,7 +102,7 @@ def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
     """
     slope_deg = ee.Terrain.slope(img)           
     slope_pct = _slope_deg_to_percent(slope_deg)
-    return slope_pct.rename(ELEVATION_BANDS[1]) 
+    return slope_pct.rename(SLOPE_BAND)
 
 def _slope_deg_to_percent(slope_deg: ee.Image) -> ee.Image:
     """Convert slope from degrees to percent (rise/run * 100)."""
@@ -139,10 +138,10 @@ def _merge_elevation_results(
         - slope_stdDev
     """
     column_map = {
-        "elevation_mean": f"{ELEVATION_BANDS[0]}_mean",
-        "elevation_std": f"{ELEVATION_BANDS[0]}_stdDev",
-        "slope_percent_mean": f"{ELEVATION_BANDS[1]}_mean",
-        "slope_percent_std": f"{ELEVATION_BANDS[1]}_stdDev",
+        "elevation_mean": f"{ELEVATION_BAND}_mean",
+        "elevation_std": f"{ELEVATION_BAND}_stdDev",
+        "slope_percent_mean": f"{SLOPE_BAND}_mean",
+        "slope_percent_std": f"{SLOPE_BAND}_stdDev",
     }
     
     return merge_ee_sampling_results(df, results, column_map)

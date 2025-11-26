@@ -7,7 +7,8 @@ import pandas as pd
 from src.sampling import build_variable_extractor, merge_ee_sampling_results
 
 NIGHTTIME_LIGHTS_COLLECTION_ID = "NOAA/VIIRS/DNB/ANNUAL_V22"
-NIGHTTIME_LIGHTS_BAND = "average"
+NIGHTTIME_LIGHTS_SOURCE_BAND = "average"
+NIGHTTIME_LIGHTS_BAND = "nighttime_lights"
 DEFAULT_SCALE = 464  # meters (VIIRS annual composite ~463.83m)
 AVAILABLE_YEARS = list(range(2012, 2023)) # 2012-2022
 
@@ -86,7 +87,7 @@ def _load_nighttime_lights_image(
         ee.ImageCollection(NIGHTTIME_LIGHTS_COLLECTION_ID)
         .filterBounds(aoi)
         .filterDate(start_date, end_date)
-        .select(NIGHTTIME_LIGHTS_BAND)
+        .select(NIGHTTIME_LIGHTS_SOURCE_BAND)
     )
 
     size = collection.size()
@@ -96,7 +97,7 @@ def _load_nighttime_lights_image(
         )
 
     image = collection.sort("system:time_start", False).first()
-    return ee.Image(image).clip(aoi)
+    return ee.Image(image).rename(NIGHTTIME_LIGHTS_BAND).clip(aoi)
 
 
 def _fetch_nighttime_light_results(
