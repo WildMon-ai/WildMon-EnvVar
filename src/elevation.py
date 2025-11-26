@@ -88,10 +88,11 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
         .clip(aoi)
     )
 
+    # I haven't fully understood why a map is necessary to compute slope here,
+    # but it doesnt work correctly otherwise.
     slope_ic = dem_ic.map(_per_tile_slope_percent)
     slope = slope_ic.median().clip(aoi)
 
-    # Composite: elevation + slope_percent
     return elevation.addBands(slope)
 
 def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
@@ -100,15 +101,15 @@ def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
     Input: DEM heights in meters.
     Output band name: 'slope_percent'.
     """
-    slope_deg = ee.Terrain.slope(img)           # degrees
+    slope_deg = ee.Terrain.slope(img)           
     slope_pct = _slope_deg_to_percent(slope_deg)
-    return slope_pct.rename(ELEVATION_BANDS[1])  # 'slope_percent'
+    return slope_pct.rename(ELEVATION_BANDS[1]) 
 
 def _slope_deg_to_percent(slope_deg: ee.Image) -> ee.Image:
     """Convert slope from degrees to percent (rise/run * 100)."""
     return (
         slope_deg
-        .multiply(DEG_TO_RAD)   # deg -> rad
+        .multiply(DEG_TO_RAD)
         .tan()
         .multiply(100.0)
    )

@@ -59,7 +59,7 @@ def extract_ndvi(
 
     _log_extraction_summary(result_df)
     
-    return result_df, ndvi_composite
+    return result_df, ee.Image(ndvi_composite)
 
 def _build_ndvi_composite(
     aoi: ee.Geometry,
@@ -72,8 +72,8 @@ def _build_ndvi_composite(
     The composite will be filtered by date and cloud cover, masked for clouds and optionally water,
     converted to surface reflectance, and have NDVI calculated and appended as a band.
 
-    In the ends, each pixel will return a single value for SR_B5, SR_B4,
-    and NDVI based on the most recent observation (.mosaic()).
+    In the ends, each pixel will return a single value for NDVI,
+    based on the median value across all images.
 
     Args:
         aoi: ee.Geometry defining the area of interest to crop the collection and reduce processing.
@@ -82,19 +82,20 @@ def _build_ndvi_composite(
         mask_water: Whether to apply water masking using GLCF dataset.
 
     Returns:
-        ee.Image containing SR_B5, SR_B4, and NDVI bands.
+        ee.Image containing NDVI band.
     """
     collection = _load_and_filter_landsat_collection(aoi, start_date, end_date)
-    water_mask = _load_water_mask(aoi) if mask_water else None
+    base_projection = collection.first().projection()
+    water_mask = _load_water_mask(aoi, base_projection) if mask_water else None
 
     composite = collection.map(
         lambda img: _process_landsat_image(img, mask_water, water_mask)
-    ).mosaic() # consider changing to .median() to reduce noise
+    ).median()
 
     if mask_water and water_mask is not None:
         composite = composite.updateMask(water_mask)
 
-    return composite.select(["SR_B5", "SR_B4", "NDVI"])
+    return composite.select(["NDVI"]).reproject(base_projection).clip(aoi)
 
 
 def _load_and_filter_landsat_collection(
@@ -128,13 +129,15 @@ def _load_and_filter_landsat_collection(
 
 
 def _load_water_mask(
-    aoi: ee.Geometry
+    aoi: ee.Geometry,
+    base_projection: ee.Projection,
 ) -> Optional[ee.Image]:
     """
     Fetch the GLCF water mask mosaicked over the AOI.
 
     Args:
         aoi: ee.Geometry defining the area of interest to crop the collection and reduce processing.
+        base_projection: ee.Projection, The projection to reproject the water mask to.
 
     Returns:
         ee.Image containing the GLCF water mask or None if the water mask cannot be loaded.
@@ -143,7 +146,7 @@ def _load_water_mask(
         logger.info("Loading GLCF water mask...")
         water_collection = ee.ImageCollection(WATER_MASK_COLLECTION_ID)
         water_dataset = water_collection.filterBounds(aoi).mosaic()
-        return water_dataset.neq(2)  # 1 = non water, 0 = water
+        return water_dataset.neq(2).reproject(base_projection)  # 1 = non water, 0 = water
     except Exception as exc:  # pragma: no cover - Earth Engine failure path
         logger.warning(f"Could not load GLCF water mask: {exc}")
         return None

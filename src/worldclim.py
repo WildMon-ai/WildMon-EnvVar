@@ -100,13 +100,28 @@ def _resolve_variables(variables: Optional[List[str]]) -> List[str]:
 
 
 def _load_worldclim_image(aoi: ee.Geometry, variables: List[str]) -> ee.Image:
-    """Load the WorldClim image, scale the bands, and clip it to the AOI."""
+    """
+    Load the WorldClim image for the specified area of interest and variables.
+
+    WorldClim variables are scaled using the provided scale factors.
+
+    Args:
+        aoi: ee.Geometry defining the area of interest for clipping the WorldClim image.
+        variables: List of WorldClim bands to extract.
+
+    Returns:
+        ee.Image with the requested bands scaled and clipped to the AOI.
+    """
     base_image = ee.Image(DATASET_ID)
     scaled_bands = [
-        base_image.select(var).multiply(SCALE_FACTORS[var]).rename(var)
+        base_image.select(var)
+        .multiply(SCALE_FACTORS[var])
+        .toFloat()
+        .rename(var)
         for var in variables
     ]
     return ee.Image.cat(scaled_bands).clip(aoi)
+
 
 def _fetch_worldclim_results(
     fc_stats: ee.FeatureCollection,
