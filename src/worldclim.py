@@ -13,7 +13,7 @@ SCALE_FACTORS: Dict[str, float] = {
     "bio01": 0.1,  # Annual Mean Temperature (°C)
     "bio02": 0.1,  # Mean Diurnal Range (°C)
     "bio03": 1.0,  # Isothermality (%)
-    "bio04": 0.1,  # Temperature Seasonality (°C)
+    "bio04": 0.01,  # Temperature Seasonality (°C)
     "bio05": 0.1,  # Max Temperature of Warmest Month (°C)
     "bio06": 0.1,  # Min Temperature of Coldest Month (°C)
     "bio07": 0.1,  # Temperature Annual Range (°C)

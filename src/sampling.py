@@ -30,6 +30,7 @@ def clean_coordinates_dataframe(
         ValueError: If required columns are missing or the input DataFrame is empty.
     """
     
+    df.columns = df.columns.str.lower()
     if lat_col not in df.columns or lon_col not in df.columns:
         raise ValueError(f"Columns '{lat_col}' and/or '{lon_col}' not found in the input DataFrame.")
     

@@ -1,11 +1,10 @@
 import ee
-import time
 
 def export_rasters_to_gdrive(
     image: ee.Image,
     region: ee.Geometry,
     file_name_prefix: str,
-    gdrive_folder: str = "EE_exports",
+    # gdrive_folder: str = "EE_exports", # Currently not very useful as each band is exported to its own folder even if they have same folder name
     scale: int = 30,
     crs: str = "EPSG:4326",
     file_format: str = "GeoTIFF",
@@ -17,7 +16,7 @@ def export_rasters_to_gdrive(
     - image: An ee.Image (can be a result of ee.Image.cat([...])).
     - region: AOI geometry to clip each band to.
     - file_name_prefix: Prefix for exported filenames.
-    - gdrive_folder: Drive folder to save exports.
+    # - gdrive_folder: Drive folder to save exports.
     - scale: Export resolution in meters.
     - crs: Export CRS, e.g. 'EPSG:4326'.
     - file_format: File format (GeoTIFF by default).
@@ -43,7 +42,7 @@ def export_rasters_to_gdrive(
         task = ee.batch.Export.image.toDrive(
             image=single_band,
             description=file_name,
-            folder=gdrive_folder,
+            folder=file_name,
             fileNamePrefix=file_name,
             region=region,
             scale=scale,
@@ -52,7 +51,6 @@ def export_rasters_to_gdrive(
             maxPixels=1e13,
         )
         task.start()
-        time.sleep(2)
         tasks.append(task)
 
         print(f"✅ Started export for band: {band} -> {file_name}")
