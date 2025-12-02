@@ -65,7 +65,7 @@ Required keys:
 | Optional: `SERVICE_ACCOUNT`, `SERVICE_ACCOUNT_KEY_FILE` | Use service account instead of browser auth. |
 
 Input expectations:
-- CSV rows represent sampling locations; default columns `latitude`, `longitude`.
+- CSV rows represent sampling locations; default columns `latitude`, `longitude`. You can have aditional columns into your DF.
 - Values outside valid coordinates ranges are dropped; the run will fail if all points are invalid.
 - AOI and sampling buffers are derived from the cleaned points and your buffer settings.
 
