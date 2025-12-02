@@ -4,7 +4,7 @@ from typing import Dict, Optional, Tuple
 import ee
 import pandas as pd
 
-from src.sampling import build_variable_extractor, merge_ee_sampling_results
+from sampling import build_variable_extractor, merge_ee_sampling_results
 
 NIGHTTIME_LIGHTS_COLLECTION_ID = "NOAA/VIIRS/DNB/ANNUAL_V22"
 NIGHTTIME_LIGHTS_SOURCE_BAND = "average"
@@ -43,7 +43,8 @@ def extract_nighttime_lights(
             result_df: DataFrame with nightlights_mean/nightlights_std columns.
             nightlights_image: ee.Image used for the extraction.
     """
-    logger.info(f"Processing {len(df)} points for nighttime lights extraction...")
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --Nighttime Lights-- extraction...")
     logger.info(f"Requested year: {year}")
     logger.info(f"Scale: {scale}m")
 

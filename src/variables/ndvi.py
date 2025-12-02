@@ -1,7 +1,7 @@
 import logging
 import ee
 import pandas as pd
-from src.sampling import merge_ee_sampling_results, build_variable_extractor
+from sampling import merge_ee_sampling_results, build_variable_extractor
 from typing import Optional, Callable, Dict
 
 logging.basicConfig(
@@ -41,6 +41,8 @@ def extract_ndvi(
             ndvi_composite: ee.Image: The NDVI composite image used for extraction.
 
     """
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --NDVI-- extraction...")
     logger.info(f"Processing {len(df)} points...")
     logger.info(f"Date range: {start_date} to {end_date}")
     logger.info(f"Scale: {scale}m")
@@ -132,9 +134,9 @@ def _load_and_filter_landsat_collection(
     )
 
     size = collection.size().getInfo()
-    logger.info(f"Found {size} Landsat 9 images for study area")
+    logger.info(f"Found {size} Landsat-9 images for study area")
     if size == 0:
-        raise ValueError("No Landsat 9 images found")
+        raise ValueError("No Landsat-9 images found, try adjusting the date range or cloud cover threshold.")
 
     return collection
 

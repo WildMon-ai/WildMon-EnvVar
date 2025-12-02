@@ -4,7 +4,7 @@ from typing import Dict, Optional, Tuple
 import ee
 import pandas as pd
 
-from src.sampling import merge_ee_sampling_results
+from sampling import merge_ee_sampling_results
 
 GLCF_WATER_COLLECTION_ID = "GLCF/GLS_WATER"
 OSM_WATER_DATASET_ID = "projects/sat-io/open-datasets/OSM_waterLayer"
@@ -36,9 +36,10 @@ def extract_distance_to_water(
     
     """
 
-    logger.info(f"Processing {len(df)} points for distance-to-water calculation...")
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --Distance to Water-- extraction...")
     logger.info(f"Sampling scale: {scale}m")
-    logger.info(f"Max search distance: {max_search_distance}m")
+    logger.info(f"Max search distance: {max_search_distance}m, pixels beyond this will be set to {max_search_distance + 1}m")
 
     logger.info("Loading water datasets at native resolution...")
     glcf_water = _load_water_layer(aoi=aoi,

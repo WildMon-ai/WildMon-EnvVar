@@ -63,3 +63,6 @@ dependencies = [
     "widgetsnbextension==4.0.14",
     "xyzservices==2025.4.0",
 ]
+
+[[tool.mypy]]
+pythonpath = ["./src"]

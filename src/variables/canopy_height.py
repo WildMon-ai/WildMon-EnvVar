@@ -4,7 +4,7 @@ from typing import Dict, Optional, Tuple
 import ee
 import pandas as pd
 
-from src.sampling import merge_ee_sampling_results, build_variable_extractor
+from sampling import merge_ee_sampling_results, build_variable_extractor
 
 CANOPY_DATASET_ID = "users/nlang/ETH_GlobalCanopyHeight_2020_10m_v1"
 CANOPY_SOURCE_BAND = "b1"
@@ -36,7 +36,8 @@ def extract_canopy_height(
             result_df: Original DataFrame with canopy_height_mean/std columns.
             canopy_height_image: ee.Image used for sampling.
     """
-    logger.info(f"Processing {len(df)} points...")
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --Canopy Height-- extraction...")
     logger.info(f"Scale: {scale}m")
 
     logger.info("Loading ETH Global Canopy Height dataset...")

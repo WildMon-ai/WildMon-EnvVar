@@ -4,11 +4,11 @@ from typing import Dict, Optional, Tuple
 import ee
 import pandas as pd
 
-from src.sampling import build_variable_extractor, merge_ee_sampling_results
+from sampling import build_variable_extractor, merge_ee_sampling_results
 
 BIOMASS_COLLECTION_ID = "projects/sat-io/open-datasets/ESA/ESA_CCI_AGB"
 BIOMASS_SOURCE_BAND = "AGB"
-BIOMASS_BAND = "agb"
+BIOMASS_BAND = BIOMASS_SOURCE_BAND.lower()
 DEFAULT_SCALE = 100
 AVAILABLE_YEARS = [
     2007,
@@ -52,7 +52,8 @@ def extract_biomass(
             result_df: DataFrame with biomass_mean/biomass_std columns.
             biomass_image: ee.Image used for the extraction.
     """
-    logger.info(f"Processing {len(df)} points for biomass extraction...")
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --Biomass (AGB)-- extraction...")
     logger.info(f"Requested year: {year}")
     logger.info(f"Scale: {scale}m")
 

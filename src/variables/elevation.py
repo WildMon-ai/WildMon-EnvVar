@@ -4,7 +4,7 @@ from typing import Dict, Optional, Tuple
 import ee
 import pandas as pd
 import math
-from src.sampling import merge_ee_sampling_results, build_variable_extractor
+from sampling import merge_ee_sampling_results, build_variable_extractor
 
 ELEVATION_COLLECTION_ID = "COPERNICUS/DEM/GLO30"
 ELEVATION_SOURCE_BAND = "DEM"
@@ -49,7 +49,8 @@ def extract_elevation(
             result_df: original DataFrame with added elevation/slope columns.
             elev_slope_image: elevation and slope ee.Image used for the computation.
     """
-    logger.info(f"Processing {len(df)} points...")
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --Elevation & Slope-- extraction...")
     logger.info(f"Scale: {scale}m")
 
     logger.info("Loading SRTM elevation dataset...")

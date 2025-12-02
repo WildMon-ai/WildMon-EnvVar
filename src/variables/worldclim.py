@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import ee
 import pandas as pd
 
-from src.sampling import merge_ee_sampling_results, build_variable_extractor
+from sampling import merge_ee_sampling_results, build_variable_extractor
 
 DATASET_ID = "WORLDCLIM/V1/BIO"
 SCALE = 1000
@@ -61,7 +61,8 @@ def extract_worldclim(
     """
     selected_variables = _resolve_variables(variables)
 
-    logger.info(f"Processing {len(df)} points...")
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --WorldClim-- extraction...")
     logger.info(f"Variables: {', '.join(selected_variables)}")
     logger.info(f"Scale: {scale}m")
 

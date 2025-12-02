@@ -4,7 +4,7 @@ from typing import Dict, Tuple
 import ee
 import pandas as pd
 
-from src.sampling import merge_ee_sampling_results
+from sampling import merge_ee_sampling_results
 
 LANDCOVER_COLLECTION_ID = "ESA/WorldCover/v200"
 LANDCOVER_SOURCE_BAND = "Map"
@@ -50,7 +50,8 @@ def extract_landcover(
             result_df: DataFrame containing dominant class code/label and per-class proportions.
             landcover_image: ee.Image used for sampling.
     """
-    logger.info(f"Processing {len(df)} points...")
+    logger.info("-----------------------------------------------")
+    logger.info(f"Starting --ESA WorldCover-- extraction...")
     logger.info("Date range: 2021")
     logger.info(f"Scale: {scale}m")
 
