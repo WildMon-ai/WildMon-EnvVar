@@ -106,7 +106,7 @@ def _load_biomass_image(
             "No ESA CCI AGB imagery found for the specified AOI and date range."
         )
 
-    image = collection.sort("system:time_start", False).first()
+    image = collection.median()
     return ee.Image(image).rename(BIOMASS_BAND).clip(aoi)
 
 

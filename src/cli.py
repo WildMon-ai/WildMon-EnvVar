@@ -15,6 +15,7 @@ import pandas as pd
 from auth import AuthenticationService
 from aoi import create_aoi_from_coordinates
 from variables.biomass import extract_biomass
+from variables.bii import extract_bii
 from variables.canopy_height import extract_canopy_height
 from variables.elevation import extract_elevation
 from export import export_csv, export_rasters_to_gdrive
@@ -152,9 +153,7 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         return int(str(date_str).split("-")[0])
 
     end_year = int(str(cfg.IMAGE_END_DATE).split("-")[0])
-    biomass_year = end_year
-    nighttime_ligths_year = end_year
-
+    
     df, image_ndvi = extract_ndvi(
         df=df,
         aoi=aoi,
@@ -193,14 +192,21 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         df=df,
         aoi=aoi,
         points_feature_collection=points_fc,
-        year=biomass_year,
+        year=end_year,
+    )
+
+    df, image_bii = extract_bii(
+        df=df,
+        aoi=aoi,
+        points_feature_collection=points_fc,
+        year=end_year,
     )
 
     df, image_nightlights = extract_nighttime_lights(
         df=df,
         aoi=aoi,
         points_feature_collection=points_fc,
-        year=nighttime_ligths_year,
+        year=end_year,
     )
 
     df, image_elevation = extract_elevation(
@@ -216,6 +222,7 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         image_landcover,
         image_waterdist,
         image_biomass,
+        image_bii,
         image_nightlights,
         image_worldclim,
     ])

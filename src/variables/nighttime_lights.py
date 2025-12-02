@@ -97,7 +97,7 @@ def _load_nighttime_lights_image(
             "No VIIRS nighttime lights imagery found for the specified AOI and year."
         )
 
-    image = collection.sort("system:time_start", False).first()
+    image = collection.median()
     return ee.Image(image).rename(NIGHTTIME_LIGHTS_BAND).clip(aoi)
 
 
