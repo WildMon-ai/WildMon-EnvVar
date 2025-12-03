@@ -213,3 +213,6 @@ __marimo__/
 **/*.svg
 **/*.tiff
 **/*.csv
+
+# MacOS
+.DS_Store

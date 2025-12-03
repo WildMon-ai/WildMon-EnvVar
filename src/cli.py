@@ -28,6 +28,7 @@ from sampling import (
 )
 from variables.waterdist import extract_distance_to_water
 from variables.worldclim import extract_worldclim
+from variables.satellite_embedding import extract_satellite_embedding
 
 logger = logging.getLogger(__name__)
 
@@ -168,14 +169,20 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         points_feature_collection=points_fc,
     )
 
-    df, image_worldclim = extract_worldclim(
+    df, image_biomass = extract_biomass(
         df=df,
         aoi=aoi,
         points_feature_collection=points_fc,
-        variables=cfg.WORLDCLIM_VARIABLES,
+        year=end_year,
     )
 
     df, image_landcover = extract_landcover(
+        df=df,
+        aoi=aoi,
+        points_feature_collection=points_fc,
+    )
+    
+    df, image_elevation = extract_elevation(
         df=df,
         aoi=aoi,
         points_feature_collection=points_fc,
@@ -186,13 +193,6 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         aoi=aoi,
         points_feature_collection=points_fc,
         max_search_distance=cfg.MAX_SEARCH_DISTANCE_M_WATERDIST,
-    )
-
-    df, image_biomass = extract_biomass(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        year=end_year,
     )
 
     df, image_bii = extract_bii(
@@ -209,19 +209,27 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         year=end_year,
     )
 
-    df, image_elevation = extract_elevation(
+    df, _ = extract_satellite_embedding(
         df=df,
         aoi=aoi,
         points_feature_collection=points_fc,
+        year=end_year,
+    )
+
+    df, image_worldclim = extract_worldclim(
+        df=df,
+        aoi=aoi,
+        points_feature_collection=points_fc,
+        variables=cfg.WORLDCLIM_VARIABLES,
     )
 
     image_stack = ee.Image.cat([
         image_ndvi,
-        image_elevation,
         image_canopy_height,
-        image_landcover,
-        image_waterdist,
         image_biomass,
+        image_landcover,
+        image_elevation,
+        image_waterdist,
         image_bii,
         image_nightlights,
         image_worldclim,
