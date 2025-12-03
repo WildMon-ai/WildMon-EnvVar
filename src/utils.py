@@ -21,6 +21,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+import pandas as pd
+import logging
+from typing import Tuple
+
+# Assume logger and logging setup are configured elsewhere (as in your final code)
+logger = logging.getLogger(__name__)
+
+
 # =============================================================================
 # RASTER PLOTTING
 # =============================================================================
@@ -495,7 +503,7 @@ def _get_band_min_max(
         Tuple of (min_value, max_value)
     """
     band_image = image.select(band)
-    if band == "NDVI":
+    if band == "ndvi":
         p = band_image.reduceRegion(
             reducer=ee.Reducer.percentile([2, 98]),
             geometry=aoi,
@@ -503,8 +511,8 @@ def _get_band_min_max(
             maxPixels=1e13,
             bestEffort=True,
         )
-        min_value = p.get("NDVI_p2").getInfo()
-        max_value = p.get("NDVI_p98").getInfo()
+        min_value = p.get("ndvi_p2").getInfo()
+        max_value = p.get("ndvi_p98").getInfo()
         return min_value, max_value
     
     min_max = band_image.reduceRegion(
