@@ -14,6 +14,7 @@ import pandas as pd
 
 from auth import AuthenticationService
 from aoi import create_aoi_from_coordinates
+from hex_grid import extract_h3_values, generate_h3_hexagons
 from variables.biomass import extract_biomass
 from variables.bii import extract_bii
 from variables.canopy_height import extract_canopy_height
@@ -51,8 +52,12 @@ class PipelineConfig:
     GEE_PROJECT_ID: str
     LOCATIONS_CSV_PATH: Path
     OUTPUT_CSV_PATH: Path
+    OUTPUT_H3_CSV_PATH: Path
+    OUTPUT_H3_GPKG_PATH: Path
+    OUTPUT_H3_SHP_PATH: Path
     LAT_COLUMN_NAME: str
     LON_COLUMN_NAME: str
+    HEX_RES: int
     SAMPLING_POINT_BUFFER_METERS: int
     AOI_BUFFER_KM: float
     IMAGE_START_DATE: str
@@ -114,9 +119,13 @@ def _validate_and_build_config(raw: Dict[str, Any]) -> PipelineConfig:
     return PipelineConfig(
         GEE_PROJECT_ID=str(raw["GEE_PROJECT_ID"]),
         LOCATIONS_CSV_PATH=Path(raw["LOCATIONS_CSV_PATH"]),
+        OUTPUT_H3_CSV_PATH=Path(raw["OUTPUT_H3_CSV_PATH"]),
+        OUTPUT_H3_GPKG_PATH=Path(raw["OUTPUT_H3_GPKG_PATH"]),
+        OUTPUT_H3_SHP_PATH=Path(raw["OUTPUT_H3_SHP_PATH"]),
         OUTPUT_CSV_PATH=Path(raw["OUTPUT_CSV_PATH"]),
         LAT_COLUMN_NAME=str(raw["LAT_COLUMN_NAME"]),
         LON_COLUMN_NAME=str(raw["LON_COLUMN_NAME"]),
+        HEX_RES=int(raw["HEX_RES"]),
         SAMPLING_POINT_BUFFER_METERS=int(raw["SAMPLING_POINT_BUFFER_METERS"]),
         AOI_BUFFER_KM=float(raw["AOI_BUFFER_KM"]),
         IMAGE_START_DATE=str(raw["IMAGE_START_DATE"]),
@@ -249,8 +258,36 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         )
 
     if export_hexa_grid:
-        logger.info("--export-hexa-grid requested, but not implemented yet.")
-        print("⚠️ --export-hexa-grid is not implemented yet.")
+        logger.info("Generating H3 hexagonal grid and extracting values...")
+        hexagon = generate_h3_hexagons(aoi=aoi, h3_resolution=cfg.HEX_RES)
+        
+        image_dict_no_categorical = {
+        'ndvi': (image_ndvi, 30),
+        'canopy_height': (image_canopy_height, 10),
+        'biomass': (image_biomass, 100),
+        'elevation': (image_elevation.select('elevation'), 30),
+        'slope': (image_elevation.select('slope_percent'), 30),
+        'water_dist': (image_waterdist, 30),
+        'bii': (image_bii, 100),
+        'nightlights': (image_nightlights, 464),
+        'bio1': (image_worldclim.select('bio01'), 1000),
+        'bio12': (image_worldclim.select('bio02'), 1000),
+        'landcover': (image_landcover, 10, 'mode')
+         }
+        
+        hexagons_with_data = extract_h3_values(
+            hex_gdf=hexagon,
+            image_dict=image_dict_no_categorical,
+            batch_size=1000,
+            tileScale=16,
+            default_reducer = 'median',
+        )
+        logger.info("H3 hexagonal grid generation and data extraction complete.")
+        
+        hexagons_with_data.to_csv(str(cfg.OUTPUT_H3_CSV_PATH), index=False)
+        hexagons_with_data.to_file(str(cfg.OUTPUT_H3_GPKG_PATH))
+        hexagons_with_data.to_file(str(cfg.OUTPUT_H3_SHP_PATH))
+        logger.info("Exported hexagons with data to files.")
 
 
 def main(argv: Optional[list[str]] = None) -> None:

@@ -327,6 +327,7 @@ dependencies = [
     { name = "google-crc32c" },
     { name = "google-resumable-media" },
     { name = "googleapis-common-protos" },
+    { name = "h3" },
     { name = "httplib2" },
     { name = "idna" },
     { name = "ipyevents" },
@@ -362,6 +363,7 @@ dependencies = [
     { name = "rsa" },
     { name = "scooby" },
     { name = "setuptools" },
+    { name = "tqdm" },
     { name = "traittypes" },
     { name = "tzdata" },
     { name = "uritemplate" },
@@ -388,6 +390,7 @@ requires-dist = [
     { name = "google-crc32c", specifier = "==1.7.1" },
     { name = "google-resumable-media", specifier = "==2.7.2" },
     { name = "googleapis-common-protos", specifier = "==1.70.0" },
+    { name = "h3", specifier = "==3.7.7" },
     { name = "httplib2", specifier = "==0.22.0" },
     { name = "idna", specifier = "==3.10" },
     { name = "ipyevents", specifier = "==2.0.2" },
@@ -423,6 +426,7 @@ requires-dist = [
     { name = "rsa", specifier = "==4.9.1" },
     { name = "scooby", specifier = "==0.10.1" },
     { name = "setuptools", specifier = "==78.1.1" },
+    { name = "tqdm", specifier = "==4.67.1" },
     { name = "traittypes", specifier = "==0.2.1" },
     { name = "tzdata", specifier = "==2025.2" },
     { name = "uritemplate", specifier = "==4.2.0" },
@@ -750,6 +754,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/39/24/33db22342cf4a2ea27c9955e6713140fedd51e8b141b5ce5260897020f1a/googleapis_common_protos-1.70.0.tar.gz", hash = "sha256:0e1b44e0ea153e6594f9f394fef15193a68aaaea2d843f83e2742717ca753257", size = 145903, upload-time = "2025-04-14T10:17:02.924Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/86/f1/62a193f0227cf15a920390abe675f386dec35f7ae3ffe6da582d3ade42c7/googleapis_common_protos-1.70.0-py3-none-any.whl", hash = "sha256:b8bfcca8c25a2bb253e0e0b0adaf8c00773e5e6af6fd92397576680b807e0fd8", size = 294530, upload-time = "2025-04-14T10:17:01.271Z" },
+]
+
+[[package]]
+name = "h3"
+version = "3.7.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/8d/b10085f4f6ef7d4cb126a2e0eaf9e907e89cf99965b6578a3d1666f1435e/h3-3.7.7.tar.gz", hash = "sha256:33d141c3cef0725a881771fd8cb80c06a0db84a6e4ca5c647ce095ae07c61e94", size = 192246, upload-time = "2024-03-09T19:23:27.714Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5e/6f/43c2a6a2bfd9fcc058b124500907f258ca8f81dbad268f001243e4a0fa70/h3-3.7.7-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:51c2f63ef5a57e4b18ebc9c0eb56656433e280ec45ab487a514127bb6e7d6a1f", size = 1047415, upload-time = "2024-03-09T19:22:42.589Z" },
+    { url = "https://files.pythonhosted.org/packages/90/47/138ec5a36f369c2b14df3b93fe4be7576391c79bae55b9088979ba0f9186/h3-3.7.7-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:4d6e38dea47c220d9802af8e8bebc806f9f39358aee07b736191ff21e2c9921d", size = 990816, upload-time = "2024-03-09T19:22:44.573Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/08/607bff5c46a58f21563301e51bda8808d81a7271dd8d83006f57d7e862ea/h3-3.7.7-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:e408342e94f558802a97bfcbe1baae2af8b1fd926ad9041d970ff9dbd0502099", size = 1161566, upload-time = "2024-03-09T19:22:46.623Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/fc/a03291173eae24cbeda2d2660e07cf9e3694543f29c7d795e4c4cd3b5369/h3-3.7.7-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:644c3c84585aa4df62e81bc54fd305c4d6686324731de230b0ddbd7036ed172c", size = 1154396, upload-time = "2024-03-09T19:22:47.948Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/81/60f8dfd21c6c00d10ea347432e9c1b1bfd8f854a3506e554f0587b59a9e7/h3-3.7.7-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:bb4a3d5e82d0c89512dc71b4eac17976a29be29da250ba76bc94bc5b9e824f0e", size = 1174981, upload-time = "2024-03-09T19:22:49.898Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/29/f516cf77436e96bf601715c39b9f801b93889060b39428aa7056ae2d65b6/h3-3.7.7-cp312-cp312-win_amd64.whl", hash = "sha256:2ccff5f02589e80202597ed0b9f61ebd114e262e7dd0fe88059298602898192f", size = 931416, upload-time = "2024-03-09T19:22:51.222Z" },
 ]
 
 [[package]]
@@ -1742,6 +1760,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/28/e3/55dcc2cfbc3ca9c29519eb6884dd1415ecb53b0e934862d3559ddcb7e20b/stack_data-0.6.3.tar.gz", hash = "sha256:836a778de4fec4dcd1dcd89ed8abff8a221f58308462e1c4aa2a3cf30148f0b9", size = 44707, upload-time = "2023-09-30T13:58:05.479Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/7b/ce1eafaf1a76852e2ec9b22edecf1daa58175c090266e9f6c64afcd81d91/stack_data-0.6.3-py3-none-any.whl", hash = "sha256:d5558e0c25a4cb0853cddad3d77da9891a08cb85dd9f9f91b9f8cd66e511e695", size = 24521, upload-time = "2023-09-30T13:58:03.53Z" },
+]
+
+[[package]]
+name = "tqdm"
+version = "4.67.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/4b/29b4ef32e036bb34e4ab51796dd745cdba7ed47ad142a9f4a1eb8e0c744d/tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2", size = 169737, upload-time = "2024-11-24T20:12:22.481Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/30/dc54f88dd4a2b5dc8a0279bdd7270e735851848b762aeb1c1184ed1f6b14/tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2", size = 78540, upload-time = "2024-11-24T20:12:19.698Z" },
 ]
 
 [[package]]

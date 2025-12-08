@@ -213,6 +213,13 @@ __marimo__/
 **/*.svg
 **/*.tiff
 **/*.csv
+**/*.cpg
+**/*.dbf
+**/*.shp
+**/*.prj
+**/*.shx
+**/*.gpkg
 
+.vscode
 # MacOS
 .DS_Store

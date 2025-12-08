@@ -1,8 +1,12 @@
-GEE_PROJECT_ID = "wildmon-projects"
-LOCATIONS_CSV_PATH = "./input/configuration.csv"
+GEE_PROJECT_ID = "wide-office-411000"
+LOCATIONS_CSV_PATH = "input/configuration.csv"
 OUTPUT_CSV_PATH = "output/env_vars.csv"
+OUTPUT_H3_CSV_PATH = "output/hexagons_with_data.csv"
+OUTPUT_H3_GPKG_PATH = "output/hexagons_with_data.gpkg"
+OUTPUT_H3_SHP_PATH = "output/hexagons.shp"
 LAT_COLUMN_NAME = "latitude"
 LON_COLUMN_NAME = "longitude"
+HEX_RES = 8
 SAMPLING_POINT_BUFFER_METERS = 200
 AOI_BUFFER_KM = 30
 IMAGE_START_DATE = "2025-01-01"
