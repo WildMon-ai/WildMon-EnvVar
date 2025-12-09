@@ -35,25 +35,31 @@ def generate_h3_hexagons(
     if aoi is None:
         raise ValueError("You must provide 'aoi' as an ee.Geometry.")
 
-    aoi_shapely = shape(aoi.getInfo())
-    if aoi_shapely.geom_type not in ("Polygon", "MultiPolygon"):
+    aoi_geom = shape(aoi.getInfo())
+    if aoi_geom.geom_type not in ("Polygon", "MultiPolygon"):
         raise ValueError("AOI must be a Polygon or MultiPolygon ee.Geometry.")
 
-    aoi_geojson = aoi_shapely.__geo_interface__
+    h3_aoi = h3.geo_to_h3shape(aoi_geom.__geo_interface__)
 
-    # H3 fill inside AOI (support both h3-py v3 and v4+)
-    h3_cells = h3.polyfill(aoi_geojson, h3_resolution, geo_json_conformant=True)
-    cell_boundary = lambda cid: h3.h3_to_geo_boundary(cid, geo_json=True)
-    
-    hex_polygons = [Polygon(cell_boundary(cell_id)) for cell_id in h3_cells]
+    hex_ids = list(
+        h3.polygon_to_cells(h3_aoi,
+            res=h3_resolution
+        )
+    )
 
-    data = {"geometry": hex_polygons}
-    data["h3_id"] = list(h3_cells)
+    # invert lat long
+    hex_geoms = []
+    for h in hex_ids:
+        boundary = h3.cell_to_boundary(h)  # e.g. [(lat, lon), (lat, lon), ...]
+        boundary_lonlat = [(lon, lat) for lat, lon in boundary]
+        hex_geoms.append(Polygon(boundary_lonlat))
+
+    data = {"geometry": hex_geoms}
+    data["h3_id"] = list(hex_ids)
 
     hex_gdf = gpd.GeoDataFrame(data, crs="EPSG:4326")
 
-    # Keep only those intersecting AOI (edge-cells)
-    hex_gdf = hex_gdf[hex_gdf.intersects(aoi_shapely)].copy()
+    hex_gdf = hex_gdf[hex_gdf.intersects(aoi_geom)].copy()
 
     if calculate_area:
         hex_gdf["hexagon_area_km2"] = hex_gdf["h3_id"].apply(
@@ -68,8 +74,8 @@ def extract_h3_values(
     image_dict: dict = None,
     image_stack: ee.Image = None,
     default_scale: int = 100,
-    default_reducer: str = 'median',  # ← Renomeado de 'reducer'
-    batch_size: int = 5000,
+    default_reducer: str = 'median',
+    batch_size: int = 500,
     tileScale: int = 16,
 ) -> gpd.GeoDataFrame:
     """
