@@ -1,11 +1,6 @@
 import ee
 import pandas as pd
 
-
-import pandas as pd
-import ee
-from typing import Union
-
 def create_aoi_from_coordinates(
     df: pd.DataFrame, buffer_km: float = 5.0
 ) -> ee.Geometry:
