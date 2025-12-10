@@ -1,21 +1,53 @@
+# =====================================================================
+# 🌍 Google Earth Engine configuration
+# =====================================================================
+
 GEE_PROJECT_ID = "wide-office-411000"
+
+
+# =====================================================================
+# 📥 Input data configuration
+# =====================================================================
+
 LOCATIONS_CSV_PATH = "input/configuration.csv"
-OUTPUT_CSV_PATH = "output/env_vars.csv"
-OUTPUT_H3_CSV_PATH = "output/hexagons_with_data.csv"
-OUTPUT_H3_GPKG_PATH = "output/hexagons_with_data.gpkg"
-OUTPUT_H3_SHP_PATH = "output/hexagons.shp"
 LAT_COLUMN_NAME = "latitude"
 LON_COLUMN_NAME = "longitude"
-HEX_RES = 8
-SAMPLING_POINT_BUFFER_METERS = 200
-AOI_BUFFER_KM = 30
-IMAGE_START_DATE = "2025-01-01"
-IMAGE_END_DATE = "2025-12-31"
-MAX_SEARCH_DISTANCE_M_WATERDIST = 20000
 
-# Optional: authenticate with a service account instead of the browser flow
+
+# =====================================================================
+# 🗺️ Spatial sampling & AOI settings
+# =====================================================================
+
+HEXAGRID_RESOLUTION = 5                 # H3 hexagon resolution
+SAMPLING_POINT_BUFFER_METERS = 200      # Buffer around each point for sampling statistics
+AOI_BUFFER_KM = 30                      # Buffer added around all points to define AOI 
+
+
+# =====================================================================
+# 🛰️ Image/time window configuration
+# =====================================================================
+
+IMAGE_START_DATE = "2025-01-01"
+IMAGE_END_DATE   = "2025-12-31"
+
+
+# =====================================================================
+# 💧 Water distance analysis
+# =====================================================================
+
+MAX_SEARCH_DISTANCE_M_WATERDIST = 20000   # Max search radius for distance-to-water (meters)
+
+
+# =====================================================================
+# 🔐 Optional: Service account authentication
+# =====================================================================
+
 # SERVICE_ACCOUNT = "service-account@google-cloud-project.iam.gserviceaccount.com"
 # SERVICE_ACCOUNT_KEY_FILE = "/abs/path/to/service-account-key.json"
 
-# Optional: WorldClim variables (comment out to use all)
+
+# =====================================================================
+# 🌡️ Optional: WorldClim variable filtering
+# =====================================================================
+
 # WORLDCLIM_VARIABLES = ["bio01", "bio12"]

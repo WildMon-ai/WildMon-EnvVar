@@ -8,7 +8,7 @@ import geemap
 import pandas as pd
 from typing import List
 from tqdm.auto import tqdm
-from src.variables.landcover import LANDCOVER_CLASSES
+from variables.landcover import LANDCOVER_CLASSES
 
 DEFAULT_CRS = 'EPSG:4326'
 
@@ -62,6 +62,7 @@ def _configure_from_image_stack(
 ):
     """
     Configure the scale and reducer for each band in an image stack based on BAND_CONFIG and defaults.
+    Returns a dictionary of bands grouped by scale and reducer.
     
     Parameters:
     - image_stack: An ee.Image containing the bands of interest.
@@ -108,7 +109,8 @@ def _log_scale_reducer_groups(
     scale_reducer_groups: dict[tuple[int, str], List[str]]
 ) -> None:
     """
-    Log the scale/reducer groups and their bands for transparency.
+    Print the scale/reducer groups and their bands for transparency.
+    It will print the scale, reducer, the number and which bands are included in each group.
 
     Parameters:
     - scale_reducer_groups: dict[tuple[int, str], List[str]], A dictionary where each key is a tuple of (scale, reducer) and each value is a list of bands that should be grouped together for reduction.
@@ -143,7 +145,7 @@ def _postprocess_results(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         df['land_cover'] = df['land_cover'].astype(int).map(LANDCOVER_CLASSES)
     return df
 
-def generate_h3_hexagons(
+def generate_h3_hexagon_grid(
     aoi: ee.Geometry,
     h3_resolution: int = 9,
     calculate_area: bool = True,
@@ -203,10 +205,12 @@ def generate_h3_hexagons(
             lambda h: h3.cell_area(h, unit='km^2')
         )
         hex_gdf["hexagon_area_m2"] = hex_gdf["hexagon_area_km2"] * 1_000_000
+    
+    print(f"Generated {len(hex_gdf)} hexagons")
 
     return hex_gdf
 
-def extract_h3_values(
+def extract_values_from_hexagons(
     hex_gdf: gpd.GeoDataFrame,
     image_stack: ee.Image,
     default_scale: int = 100,
