@@ -9,7 +9,7 @@ GEE_PROJECT_ID = "wide-office-411000"
 # 📥 Input data configuration
 # =====================================================================
 
-LOCATIONS_CSV_PATH = "input/configuration.csv"
+LOCATIONS_CSV_PATH = "input/locations.csv"
 LAT_COLUMN_NAME = "latitude"
 LON_COLUMN_NAME = "longitude"
 

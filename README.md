@@ -24,6 +24,21 @@ The pipeline provides a **reproducible, scalable, one-config-file workflow** to 
 ---
 
 ## 📦 Quickstart (30 seconds)
+
+### **Prerequisite: Input CSV**
+
+An example CSV is provided at `input/locations.csv`.
+
+```csv
+site_id,latitude,longitude
+S01,-11.7234,-72.4567
+S02,-11.8501,-72.3902
+```
+
+You can **run the pipeline using this file immediately** for testing, or replace it with your own CSV (any file with at least `latitude` and `longitude` columns is valid).
+
+Point your `config.toml` to either the example file or your own.
+
 ### 1. Clone and install via [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
 ```bash
 git clone https://github.com/<your-org>/ds-gis-pipeline.git
@@ -40,8 +55,10 @@ gcloud config set project <your-gcp-project-id>
 
 ### 3. Run the pipeline
 
+After providing a csv (comma separated) with at least two columns representing latitude and longitude of your sites
+
 ```bash
-uv run python -m src/cli --config config.toml
+uv run python src/cli --config config.toml
 ```
 
 Optional flags:
@@ -51,7 +68,6 @@ We recomend using those only after selecting the final env vars due to computati
 --export-raw-rasters    # save GeoTIFFs to Google Drive
 --export-hexa-grid      # compute H3 grid statistics
 ```
-
 
 ---
 
@@ -135,14 +151,14 @@ Key required settings:
 
 | Key                                                     | Description                            |
 | ------------------------------------------------------- | -------------------------------------- |
-| `GEE_PROJECT_ID`                                        | Project used for GEE billing/quotas    |
+| `GEE_PROJECT_ID`                                        | Google Cloud Project ID used for GEE billing/quotas    |
 | `LOCATIONS_CSV_PATH`                                    | Input CSV path with location's coordinates                         |
 | `LAT_COLUMN_NAME` / `LON_COLUMN_NAME`                   | Location's geographic coordinate column names                  |
-| `SAMPLING_POINT_BUFFER_METERS`                          | Radius for buffered sampling, pixels within that buffered area will be used to summarize the env var variation for each site           |
-| `AOI_BUFFER_KM`                                         | Buffer added to bounding box of points |
-| `IMAGE_START_DATE` / `IMAGE_END_DATE`                   | Date range for NDVI/lights and other variables             |
-| `MAX_SEARCH_DISTANCE_M_WATERDIST`                       | Max radius for water distance, values aboce that will be set to max value + 1          |
-| `HEXAGRID_RESOLUTION`                                   | H3 resolution when exporting hex grids (default 9 ≈ 183 m radius) |
+| `SAMPLING_POINT_BUFFER_METERS`                          | Radius for buffered sampling, pixels within that buffered area will be used to summarize the variation for each site           |
+| `AOI_BUFFER_KM`                                         | Buffer added to bounding box of points (AOI) |
+| `IMAGE_START_DATE` / `IMAGE_END_DATE`                   | Date range for NDVI/lights and other variables that have multi-year images             |
+| `MAX_SEARCH_DISTANCE_M_WATERDIST`                       | Max radius for water distance, values above that will be set to max value + 1          |
+| `HEXAGRID_RESOLUTION`                                   | H3 resolution when exporting hex grids (default 9 ≈ 183 m radius), more details [here](#hexagon-grid-extraction-h3) |
 | Optional: `WORLDCLIM_VARIABLES`                         | Subset of variables to extract         |
 | Optional: `SERVICE_ACCOUNT`, `SERVICE_ACCOUNT_KEY_FILE` | For automated runs                     |
 
@@ -152,7 +168,7 @@ Key required settings:
 ## 🖥 CLI Usage (recommended)
 
 ```bash
-uv run python -m src.cli --config config.toml \
+uv run python src.cli --config config.toml \
   [--export-raw-rasters] \
   [--export-hexa-grid]
 ```
