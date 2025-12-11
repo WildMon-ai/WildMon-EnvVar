@@ -19,7 +19,7 @@ from variables.biomass import extract_biomass
 from variables.bii import extract_bii
 from variables.canopy_height import extract_canopy_height
 from variables.elevation import extract_elevation
-from export import export_csv, export_rasters_to_gdrive
+from export import export_csv, export_rasters_to_gdrive, export_hexagrid_results
 from variables.landcover import extract_landcover
 from variables.ndvi import extract_ndvi
 from variables.nighttime_lights import extract_nighttime_lights
@@ -34,9 +34,7 @@ from variables.satellite_embedding import extract_satellite_embedding
 logger = logging.getLogger(__name__)
 
 OUTPUT_SITE_ENV_VARS_PATH = "output/site_env_vars.csv"
-OUTPUT_HEXAGRID_CSV_PATH = "output/hexagons_with_data.csv"
-OUTPUT_HEXAGRID_GPKG_PATH = "output/hexagons_with_data.gpkg"
-OUTPUT_HEXAGRID_SHP_PATH = "output/hexagons.shp"
+OUTPUT_HEXAGRID = "output/hexagrid"
 
 REQUIRED_KEYS = [
     "GEE_PROJECT_ID",
@@ -56,9 +54,7 @@ class PipelineConfig:
     GEE_PROJECT_ID: str
     LOCATIONS_CSV_PATH: Path
     OUTPUT_SITE_ENV_VARS_PATH: Path
-    OUTPUT_HEXAGRID_CSV_PATH: Path
-    OUTPUT_HEXAGRID_GPKG_PATH: Path
-    OUTPUT_HEXAGRID_SHP_PATH: Path
+    OUTPUT_HEXAGRID: Path
     LAT_COLUMN_NAME: str
     LON_COLUMN_NAME: str
     HEXAGRID_RESOLUTION: int
@@ -123,9 +119,7 @@ def _validate_and_build_config(raw: Dict[str, Any]) -> PipelineConfig:
     return PipelineConfig(
         GEE_PROJECT_ID=str(raw["GEE_PROJECT_ID"]),
         LOCATIONS_CSV_PATH=Path(raw["LOCATIONS_CSV_PATH"]),
-        OUTPUT_HEXAGRID_CSV_PATH=Path(OUTPUT_HEXAGRID_CSV_PATH),
-        OUTPUT_HEXAGRID_GPKG_PATH=Path(OUTPUT_HEXAGRID_GPKG_PATH),
-        OUTPUT_HEXAGRID_SHP_PATH=Path(OUTPUT_HEXAGRID_SHP_PATH),
+        OUTPUT_HEXAGRID=Path(OUTPUT_HEXAGRID),
         OUTPUT_SITE_ENV_VARS_PATH=Path(OUTPUT_SITE_ENV_VARS_PATH),
         LAT_COLUMN_NAME=str(raw["LAT_COLUMN_NAME"]),
         LON_COLUMN_NAME=str(raw["LON_COLUMN_NAME"]),
@@ -274,9 +268,8 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         )
         logger.info("H3 hexagonal grid generation and data extraction completed")
         
-        hexagons_with_data.to_csv(str(cfg.OUTPUT_HEXAGRID_CSV_PATH), index=False)
-        hexagons_with_data.to_file(str(cfg.OUTPUT_HEXAGRID_GPKG_PATH))
-        hexagons_with_data.to_file(str(cfg.OUTPUT_HEXAGRID_SHP_PATH))
+        export_hexagrid_results(hexagons_with_data, OUTPUT_HEXAGRID)
+
         logger.info("Exported hexagons with data to files.")
 
 

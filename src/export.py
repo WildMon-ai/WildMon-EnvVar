@@ -1,4 +1,6 @@
 import ee
+import os
+import geopandas as gpd
 
 def export_rasters_to_gdrive(
     image: ee.Image,
@@ -60,4 +62,11 @@ def export_rasters_to_gdrive(
 def export_csv(df, output_path: str):
     """Export a pandas DataFrame to CSV."""
     df.to_csv(output_path, index=False)
+    print(f"\nResult saved to {output_path}")
+
+def export_hexagrid_results(gdf: gpd.GeoDataFrame, output_path: str):
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    gdf.to_csv(output_path + ".csv", index=False)
+    gdf.to_file(output_path + ".shp")
+    gdf.to_file(output_path + ".gpkg")
     print(f"\nResult saved to {output_path}")

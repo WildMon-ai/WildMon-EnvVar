@@ -1,95 +1,261 @@
-# ds-gis-pipeline
+# 🌎 WildMon EnvVars
 
-Environmental variable extraction around point locations using Google Earth Engine (GEE). The pipeline ingests a CSV of coordinates, builds an area of interest (AOI), buffers each point, samples multiple environmental datasets, and exports a tidy CSV (plus optional rasters to Google Drive). A companion notebook is available for interactive exploration (maps, per-variable scaling, quick tweaks); for production runs we recommend the CLI with the provided defaults.
+### **Environmental covariate extraction for biodiversity and ecological modeling (via Google Earth Engine)**
 
-## What the pipeline does
-- Validates and cleans input coordinates, discarding out-of-bounds points.
-- Builds an AOI by bounding all points and adding a user-defined buffer. This is used to expedite processing but also to export rasters and other grids necessary for model projections.
-- Buffers each point to create sampling geometries (circles). This gets used to extract mean/std statistics for each variable.
-- Extracts variables from GEE (current set): NDVI (Landsat 9), canopy height (ETH 2020 10 m), WorldClim bioclim, ESA Land Cover, distance to water, above-ground biomass, nighttime lights, and elevation (& slope). 
-- Exports a CSV with summary stats per location, and optionally exports the raw source rasters from GEE to GeoTIFFs to Google Drive.
+**wildmon-envvars** is a Python Pipeline for extracting high-quality environmental variables around point locations using **Google Earth Engine (GEE)**.
+It is designed for biodiversity monitoring, ecological analyses, and species distribution modeling (SDMs), where environmental predictors such as NDVI, canopy height, climate variables, or distance to water are essential to understand the relationship between biodiversity and the landscape.
 
-## Prerequisites
-- Google Earth Engine access (and a GCP project you can bill against).
-- Python 3.12 (managed automatically by `uv`).
-- [`uv`](https://docs.astral.sh/uv/) 0.4.0+ for environment and commands.
-- Google Cloud SDK for authentication (`gcloud`).
+The pipeline provides a **reproducible, scalable, one-config-file workflow** to generate ready-to-use covariates — without requiring users to write GEE code or GIS expertise.
 
-## Setup with uv and GCP auth
+---
+
+## 🚀 Key Features
+
+* Extract environmental covariates for point locations (buffered geometries).
+* Automatically build an **Area of Interest (AOI)** from your coordinate set.
+* Support for 10+ global datasets:
+  NDVI, canopy height, land cover, bioclimate, biomass, nighttime lights, elevation, slope and distance to water. 
+* Export processed results to a tidy CSV.
+* **Optional:** export raw rasters as GeoTIFFs for GIS workflows.
+* **Optional:** build an **Hexagon grid** covering the AOI and extract per-hex statistics (useful for model projections).
+* CLI for hands-off, reproducible runs; Jupyter notebook for visual exploration.
+* Config-driven design — easy to automate and version-control.
+
+---
+
+## 📦 Quickstart (30 seconds)
+### 1. Clone and install via [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
 ```bash
-# 1) Install uv (one-time)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# or: brew install uv
-
-# 2) Ensure Python 3.12 is available to uv
-uv python install 3.12
-
-# 3) Create the virtual env and install locked deps
+git clone https://github.com/<your-org>/ds-gis-pipeline.git
+cd ds-gis-pipeline
 uv sync
+```
 
-# 4) Install gcloud (for browser-based auth)
-brew install --cask google-cloud-sdk # Mac
-sudo apt-get install google-cloud-sdk # Linux
-https://cloud.google.com/sdk/docs/install#windows # Windows
+### 2. Authenticate with [Google Cloud / Earth Engine](https://docs.cloud.google.com/sdk/docs/install-sdk)
 
-# 5) Authenticate to GCP/GEE (one-time per machine)
-gcloud init                           # choose account and defaults
-gcloud auth login                     # browser login for gcloud CLI
-gcloud auth application-default login # sets ADC used by the pipeline
+```bash
+gcloud auth application-default login
 gcloud config set project <your-gcp-project-id>
 ```
 
-### Service account option
-If browser auth is not possible, you can create a service account with Earth Engine + Drive access, download its JSON key, and set in the config:
-- `SERVICE_ACCOUNT = "svc@project.iam.gserviceaccount.com"`
-- `SERVICE_ACCOUNT_KEY_FILE = "/abs/path/to/key.json"`
-More info at:
-[https://docs.cloud.google.com/iam/docs/service-accounts-create]
+### 3. Run the pipeline
 
-## Configure the run
-If you plan to run the CLI, You need to first edit the `config.toml` file (or point the CLI at another TOML/JSON).
-
-Required keys:
-
-| Key | What it controls |
-| --- | --- |
-| `GEE_PROJECT_ID` | GCP project used for GEE billing/quotas. |
-| `LOCATIONS_CSV_PATH` | Input CSV with at least latitude/longitude columns. |
-| `OUTPUT_CSV_PATH` | Where the output summary CSV with results will be written. |
-| `LAT_COLUMN_NAME` / `LON_COLUMN_NAME` | Column names in your CSV (case-insensitive). |
-| `SAMPLING_POINT_BUFFER_METERS` | Radius for buffered sampling geometries. |
-| `AOI_BUFFER_KM` | Buffer added to the bounding box of all points to form the AOI. |
-| `IMAGE_START_DATE` / `IMAGE_END_DATE` | Date range for time-filtered datasets (e.g., NDVI, lights). |
-| `MAX_SEARCH_DISTANCE_M_WATERDIST` | Max search radius when finding nearest water. |
-| Optional: `WORLDCLIM_VARIABLES` | List of WorldClim bands to subset (defaults to all 19). |
-| Optional: `SERVICE_ACCOUNT`, `SERVICE_ACCOUNT_KEY_FILE` | Use service account instead of browser auth. |
-
-Input expectations:
-- CSV rows represent sampling locations; default columns `latitude`, `longitude`. You can have aditional columns into your DF.
-- Values outside valid coordinates ranges are dropped; the run will fail if all points are invalid.
-- AOI and sampling buffers are derived from the cleaned points and your buffer settings.
-
-## Run the CLI (recommended)
-From the repo root:
 ```bash
-uv run python -m cli --config config.toml \
-  [--export-raw-rasters] [--export-hexa-grid]
+uv run python -m src/cli --config config.toml
 ```
-- `--export-raw-rasters`: exports each band to Google Drive as GeoTIFF (one folder per band).
-- `--export-hexa-grid`: placeholder flag; not implemented yet.
-- Outputs: the CSV at `OUTPUT_CSV_PATH`; if raster export is enabled, monitor tasks at https://code.earthengine.google.com/tasks.
 
-## Use the notebook (interactive option)
+Optional flags:
+We recomend using those only after selecting the final env vars due to computational constraints.
+
+```bash
+--export-raw-rasters    # save GeoTIFFs to Google Drive
+--export-hexa-grid      # compute H3 grid statistics
+```
+
+
+---
+
+## 🧭 What the pipeline does (high-level workflow)
+
+```md
+                           Input CSV
+                    (lat/lon + metadata)
+                               │
+                               ▼
+                       Coordinate cleaning
+                               │
+                               ▼
+                AOI construction (bounding box + buffer)
+                               │
+                               ▼
+               Create sampling buffers around each point
+                               │
+                               ▼
+     ┌────────────────────────────────────────────────────────────┐
+     │   Load + prepare GEE datasets (masking, scaling, proj)     │
+     └────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+                 Extract variables for buffered points
+                               │
+                               ▼
+        ┌─────────────────────────────────────────────────────────┐
+        │                 Summary CSV (per-point stats)           │
+        └─────────────────────────────────────────────────────────┘
+                               │
+            ┌──────────────────┴──────────────────────┐
+            │                                         │
+            ▼                                         ▼
+
+ Optional: Export rasters                      Optional: Build H3 hexgrid
+  (GeoTIFFs to Drive)                        inside AOI and extract stats
+            │                                         │
+            ▼                                         ▼
+       GeoTIFF files                             Hexgrid stats file
+                                           (SHP / GPKG / CSV formats)
+```
+---
+
+## 📝 Example Output (CSV)
+
+| site_id | latitude | longitude | ndvi_mean | canopy_height | dist_water | bio1 | bio12 | landcover | ... |
+| ------- | -------- | --------- | --------- | ------------- | ---------- | ---- | ----- | --------- | --- |
+| S1      | -11.72   | -72.45    | 0.63      | 28.4          | 91.2      | 23.1 | 2400  | Tree_cover  | ... |
+
+The pipeline guarantees:
+
+* consistent scaling
+* projection alignment
+* masked values handled correctly (water bodies)
+* reducers chosen per dataset (mean, mode, median, etc.)
+
+---
+
+## 📁 Available Datasets (and how they’re processed)
+
+| Dataset | Scale | Reducer | Temporal range | Notes |
+| --- | --- | --- | --- | --- |
+| [**NDVI (Landsat 9)**](https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC09_C02_T1_L2) | 30 m | median, sd | 2021–present (filtered by `IMAGE_START_DATE`/`IMAGE_END_DATE`) | Cloud-masked, water-masked |
+| [**Canopy height (ETH 2020)**](https://gee-community-catalog.org/projects/canopy/) | 10 m | median, sd | 2020 snapshot | Global canopy height model |
+| [**WorldClim bioclim (19 vars)**](https://developers.google.com/earth-engine/datasets/catalog/WORLDCLIM_V1_BIO) | ~1 km | median, sd | Climatology (1970–2000 baseline, static) | Variables scaled automatically |
+| [**ESA Land Cover**](https://developers.google.com/earth-engine/datasets/catalog/ESA_WorldCover_v200) | 10 m | mode, percentage of each category | 2021 (v200) | Mapped to class labels |
+| **Distance to water** | 30 m | median, sd | Static | Fast distance transform combining [GLCF](https://developers.google.com/earth-engine/datasets/catalog/GLCF_GLS_WATER) and [OSM](https://gee-community-catalog.org/projects/osm_water/?h=water) |
+| [**Above-ground biomass (AGB)**](https://gee-community-catalog.org/projects/cci_agb/?h=above+ground+biomass) | 100 m | median, sd | 2007,2010,2015-2022 | ESA CCI Global Forest Above Ground Biomass |
+| [**Nighttime lights (VIIRS)**](https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_DNB_ANNUAL_V22) | 464 m | median, sd | Annual composites (2012–2023) | Time-filtered by config window |
+| [**Elevation & slope (Copernicus)**](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_DEM_GLO30) | 30 m | median, sd | Static | Derived slope in percentage |
+
+
+All processing steps (scaling, masking, projections) are abstracted away.
+
+---
+
+## 🔧 Configuration (config.toml)
+
+Key required settings:
+
+| Key                                                     | Description                            |
+| ------------------------------------------------------- | -------------------------------------- |
+| `GEE_PROJECT_ID`                                        | Project used for GEE billing/quotas    |
+| `LOCATIONS_CSV_PATH`                                    | Input CSV path with location's coordinates                         |
+| `LAT_COLUMN_NAME` / `LON_COLUMN_NAME`                   | Location's geographic coordinate column names                  |
+| `SAMPLING_POINT_BUFFER_METERS`                          | Radius for buffered sampling, pixels within that buffered area will be used to summarize the env var variation for each site           |
+| `AOI_BUFFER_KM`                                         | Buffer added to bounding box of points |
+| `IMAGE_START_DATE` / `IMAGE_END_DATE`                   | Date range for NDVI/lights and other variables             |
+| `MAX_SEARCH_DISTANCE_M_WATERDIST`                       | Max radius for water distance, values aboce that will be set to max value + 1          |
+| `HEXAGRID_RESOLUTION`                                   | H3 resolution when exporting hex grids (default 9 ≈ 183 m radius) |
+| Optional: `WORLDCLIM_VARIABLES`                         | Subset of variables to extract         |
+| Optional: `SERVICE_ACCOUNT`, `SERVICE_ACCOUNT_KEY_FILE` | For automated runs                     |
+
+
+---
+
+## 🖥 CLI Usage (recommended)
+
+```bash
+uv run python -m src.cli --config config.toml \
+  [--export-raw-rasters] \
+  [--export-hexa-grid]
+```
+
+Suggested workflow:
+
+1. Run basic extraction (summary CSV) first without rasters and hexa-grid.
+2. When needed, export rasters for GIS debugging or modeling.
+3. Use hex-grids for spatial projections (downstream SDMs, maps, etc.).
+
+Outputs:
+
+* `output/site_env_vars.csv`
+* Optional: raster GeoTIFFs directly saved to the root of your Google Drive
+* Optional: hex grids (`output/hexgrids.*`)
+
+---
+
+## 🗺 Interactive Notebook
+
+Launch:
+
 ```bash
 uv run jupyter notebook pipeline.ipynb
 ```
-The notebook mirrors the CLI flow but lets you visualize the AOI, adjust per-variable scale parameters, and inspect map layers. Keep the same config values unless you intentionally diverge.
 
-## Contributing / tweaking
-- Modify dependencies with `uv add <pkg>` / `uv remove <pkg>`; commit both `pyproject.toml` and `uv.lock`.
-- Add new variables under `src/variables/` following the existing extractor pattern, and wire them into `src/cli.py`.
+The notebook mirrors the CLI flow, adds visualization tools, and supports quick parameter tuning. Useful for more interactive processes.
 
-## Tips and troubleshooting
-- If you see auth errors, rerun `gcloud auth application-default login` or switch to a service account.
-- Rasters export to Drive; ensure your account/service account has Drive access.
-- Keep buffer sizes reasonable; very large AOIs can exhaust Earth Engine limits.
+---
+
+## ⚙️ Hexagon Grid Extraction (H3)
+
+When `--export-hexa-grid` is enabled:
+
+* AOI is tiled using an H3 grid (default resolution 9 ≈ 183 m radius).
+* The same variables extracted for points are aggregated per hexagon.
+* Useful for modeling workflows that require continuous spatial predictions.
+
+Reference table for the different HEXAGRID_RESOLUTIONS values:
+| Resolution | Area (km²) | Area (m²)        | Area (ha)        | Approximate Radius (m) |
+|------------|------------|------------------|-------------------|-------------------------|
+| 0          | 4,250,547  | 4,250,546,847,700 | 425,054,684.77    | 1,163,181               |
+| 1          | 607,221    | 607,220,978,243   | 60,722,097.82     | 439,641                 |
+| 2          | 86,746     | 86,745,854,035    | 8,674,585.40      | 166,169                 |
+| 3          | 12,392     | 12,392,264,862    | 1,239,226.49      | 62,806                  |
+| 4          | 1,770      | 1,770,323,552      | 177,032.36        | 23,738                  |
+| 5          | 253        | 252,903,365        | 25,290.34         | 8,972                   |
+| 6          | 36         | 36,129,052         | 3,612.91          | 3,391                   |
+| 7          | 5          | 5,161,293          | 516.13            | 1,282                   |
+| 8          | 1          | 737,328            | 73.73             | 484                     |
+| 9          | 0          | 105,333            | 10.53             | 183                     |
+| 10         | 0          | 15,048             | 1.50              | 69                      |
+| 11         | 0          | 2,149              | 0.21              | 26                      |
+| 12         | 0          | 307                | 0.03              | 10                      |
+| 13         | 0          | 44                 | 0.00              | 4                       |
+| 14         | 0          | 6                  | 0.00              | 1                       |
+| 15         | 0          | 1                  | 0.00              | 1                       |
+
+
+Under the hood:
+
+* Band groups processed together to minimize GEE calls.
+* Operations batched to avoid memory/time limits.
+* Output formats: SHP, GeoPackage, CSV.
+
+---
+
+## 🔒 Authentication Options
+
+### Default (recommended)
+
+```bash
+gcloud auth application-default login
+```
+
+### Service Account (for automation)
+
+Add to `config.toml`:
+
+```
+SERVICE_ACCOUNT = "svc@project.iam.gserviceaccount.com"
+SERVICE_ACCOUNT_KEY_FILE = "/path/key.json"
+```
+
+---
+
+## 🧩 Contributing / Extending
+
+* Add new data extractors under `src/variables/` following the existing pattern.
+* Manage dependencies with `uv add <pkg>` / `uv remove <pkg>`.
+* Please open issues or PRs for new datasets or bug fixes.
+
+---
+
+## ⚠️ Notes & Performance Tips
+
+* Very large AOIs or fine-resolution hexgrids may exceed Earth Engine compute limits. If you experience difficulties we recommend downscaling the AOI or Hexgrid resolution.
+* Start small (few points), inspect results, then scale up.
+* Rasters export via Google Drive — ensure Drive API access is enabled.
+* If authentication fails, rerun `gcloud auth application-default login`.
+
+---
+
+## 📜 License
+
+This project is released under the MIT License. See the LICENSE file for details (TO BE ADDED).
