@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import re
+
 import ee
 import pandas as pd
 
@@ -18,7 +20,7 @@ from hex_grid import generate_h3_hexagon_grid, extract_values_from_hexagons
 from variables.biomass import extract_biomass
 from variables.bii import extract_bii
 from variables.canopy_height import extract_canopy_height
-from variables.elevation import extract_elevation
+from variables.elevation import extract_elevation, ELEVATION_BANDS
 from export import export_csv, export_rasters_to_gdrive, export_hexagrid_results
 from variables.landcover import extract_landcover
 from variables.ndvi import extract_ndvi
@@ -27,7 +29,7 @@ from sampling import (
     clean_coordinates_dataframe,
     convert_points_to_buffered_features,
 )
-from variables.waterdist import extract_distance_to_water
+from variables.waterdist import extract_distance_to_water, COMBINED_WATER_BAND
 from variables.worldclim import extract_worldclim
 from variables.satellite_embedding import extract_satellite_embedding
 
@@ -35,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_SITE_ENV_VARS_PATH = "output/site_env_vars.csv"
 OUTPUT_HEXAGRID = "output/hexagrid"
+
+WORLDCLIM_PATTERN = re.compile(r"^bio\d{2}$")
 
 REQUIRED_KEYS = [
     "GEE_PROJECT_ID",
@@ -63,6 +67,7 @@ class PipelineConfig:
     IMAGE_START_DATE: str
     IMAGE_END_DATE: str
     MAX_SEARCH_DISTANCE_M_WATERDIST: int
+    VARIABLES_ENABLED: Dict[str, bool]
     WORLDCLIM_VARIABLES: Optional[list[str]] = None
     SERVICE_ACCOUNT: Optional[str] = None
     SERVICE_ACCOUNT_KEY_FILE: Optional[Path] = None
@@ -129,12 +134,16 @@ def _validate_and_build_config(raw: Dict[str, Any]) -> PipelineConfig:
         IMAGE_START_DATE=str(raw["IMAGE_START_DATE"]),
         IMAGE_END_DATE=str(raw["IMAGE_END_DATE"]),
         MAX_SEARCH_DISTANCE_M_WATERDIST=int(raw["MAX_SEARCH_DISTANCE_M_WATERDIST"]),
-        WORLDCLIM_VARIABLES=raw.get("WORLDCLIM_VARIABLES"),
+        VARIABLES_ENABLED=raw.get("VARIABLES_ENABLED",{}),
+        # WORLDCLIM_VARIABLES=raw.get("WORLDCLIM_VARIABLES"),
         SERVICE_ACCOUNT=service_account,
         SERVICE_ACCOUNT_KEY_FILE=service_account_key_file,
     )
 
-def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid: bool) -> None:
+def run_pipeline(cfg: PipelineConfig,
+                 export_raw_rasters: bool,
+                 export_hexa_grid: bool) -> None:
+    
     ok = AuthenticationService.authenticate(
         project_id=cfg.GEE_PROJECT_ID,
         service_account=cfg.SERVICE_ACCOUNT,
@@ -162,88 +171,117 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
 
     end_year = int(str(cfg.IMAGE_END_DATE).split("-")[0])
     
-    df, image_ndvi = extract_ndvi(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        start_date=cfg.IMAGE_START_DATE,
-        end_date=cfg.IMAGE_END_DATE,
-    )
+    images: list[ee.Image] = []
 
-    df, image_canopy_height = extract_canopy_height(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-    )
+    if cfg.VARIABLES_ENABLED.get("ndvi", False):
+        df, image_ndvi = extract_ndvi(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+            start_date=cfg.IMAGE_START_DATE,
+            end_date=cfg.IMAGE_END_DATE,
+        )
+        images.append(image_ndvi)
 
-    df, image_biomass = extract_biomass(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        year=end_year,
-    )
+    if cfg.VARIABLES_ENABLED.get("canopy_height", False):
+        df, image_canopy_height = extract_canopy_height(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+        )
+        images.append(image_canopy_height)
 
-    df, image_landcover = extract_landcover(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-    )
+    if cfg.VARIABLES_ENABLED.get("agb", False):
+        df, image_biomass = extract_biomass(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+            year=end_year,
+        )
+        images.append(image_biomass)
+
+    if cfg.VARIABLES_ENABLED.get("land_cover", False):
+        df, image_landcover = extract_landcover(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+        )
+        images.append(image_landcover)
     
-    df, image_elevation = extract_elevation(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-    )
+    elev_bands_enabled = [b for b in ELEVATION_BANDS if cfg.VARIABLES_ENABLED.get(b, False)]
+    if elev_bands_enabled:
+        df, image_elevation = extract_elevation(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+        )
+        if "slope_percent" not in elev_bands_enabled:
+            df = df.drop(columns=[c for c in df.columns if c.startswith("slope_percent_")], errors="ignore")
+        if "elevation" not in elev_bands_enabled:
+            df = df.drop(columns=[c for c in df.columns if c.startswith("elevation_")], errors="ignore")
+        images.append(image_elevation.select(elev_bands_enabled))
 
-    df, image_waterdist = extract_distance_to_water(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        max_search_distance=cfg.MAX_SEARCH_DISTANCE_M_WATERDIST,
-    )
+    if cfg.VARIABLES_ENABLED.get("distance_to_water_m", False):
+        df, image_waterdist = extract_distance_to_water(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+            max_search_distance=cfg.MAX_SEARCH_DISTANCE_M_WATERDIST,
+        )
+        images.append(image_waterdist)
 
-    df, image_bii = extract_bii(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        year=end_year,
-    )
+    if cfg.VARIABLES_ENABLED.get("biointactness", False):
+        df, image_bii = extract_bii(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+            year=end_year,
+        )
+        images.append(image_bii)
 
-    df, image_nightlights = extract_nighttime_lights(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        year=end_year,
-    )
+    if cfg.VARIABLES_ENABLED.get("nighttime_lights", False):
+        df, image_nightlights = extract_nighttime_lights(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+            year=end_year,
+        )
+        images.append(image_nightlights)
 
-    df, _ = extract_satellite_embedding(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        year=end_year,
-    )
+    if cfg.VARIABLES_ENABLED.get("satellite_embedding", False):
+        df, _ = extract_satellite_embedding(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+            year=end_year,
+        )
 
-    df, image_worldclim = extract_worldclim(
-        df=df,
-        aoi=aoi,
-        points_feature_collection=points_fc,
-        variables=cfg.WORLDCLIM_VARIABLES,
-    )
 
-    image_stack = ee.Image.cat([
-        image_ndvi,
-        image_canopy_height,
-        image_biomass,
-        image_landcover,
-        image_elevation,
-        image_waterdist,
-        image_bii,
-        image_nightlights,
-        image_worldclim,
-    ])
+    worldclim_enabled = [
+    band
+    for band, enabled in cfg.VARIABLES_ENABLED.items()
+    if enabled and WORLDCLIM_PATTERN.match(band)
+    ]
+    if worldclim_enabled:
+        df, image_worldclim = extract_worldclim(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+            variables=worldclim_enabled,
+        )
+        images.append(image_worldclim.select(worldclim_enabled))
+
+    if not images:
+        raise ValueError("No imagery variables enabled; enable at least one in VARIABLES_ENABLED.")
 
     export_csv(df, str(cfg.OUTPUT_SITE_ENV_VARS_PATH))
-
+    
+    image_stack = (
+            images[0]
+            if len(images) == 1
+            else ee.Image.cat(images)
+        )
+    
     if export_raw_rasters:
         prefix = str(_year_from_date(cfg.IMAGE_START_DATE))
         export_rasters_to_gdrive(
@@ -256,9 +294,11 @@ def run_pipeline(cfg: PipelineConfig, export_raw_rasters: bool, export_hexa_grid
         )
 
     if export_hexa_grid:
+        bands = image_stack.bandNames().remove(COMBINED_WATER_BAND)
+        image_stack = image_stack.select(bands)
+
         logger.info("Generating H3 hexagonal grid and extracting values...")
         hex_gdf = generate_h3_hexagon_grid(aoi=aoi, h3_resolution=cfg.HEXAGRID_RESOLUTION)
-        
         
         hexagons_with_data = extract_values_from_hexagons(
             hex_gdf=hex_gdf,

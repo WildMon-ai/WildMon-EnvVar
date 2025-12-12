@@ -47,7 +47,36 @@ MAX_SEARCH_DISTANCE_M_WATERDIST = 20000   # Max search radius for distance-to-wa
 
 
 # =====================================================================
-# 🌡️ Optional: WorldClim variable filtering
+# 🌡️ Optional: Subselect Variables 
 # =====================================================================
 
-# WORLDCLIM_VARIABLES = ["bio01", "bio12"]
+[VARIABLES_ENABLED]
+ndvi = true
+canopy_height = true
+agb = true
+land_cover = true
+distance_to_water_m = true
+biointactness = true
+nighttime_lights = true
+elevation = true
+slope_percent = true
+satellite_embedding = true
+bio01 = true
+bio02 = true
+bio03 = true
+bio04 = true
+bio05 = true
+bio06 = true
+bio07 = true
+bio08 = true
+bio09 = true
+bio10 = true
+bio11 = true
+bio12 = true
+bio13 = true
+bio14 = true
+bio15 = true
+bio16 = true
+bio17 = true
+bio18 = true
+bio19 = true
