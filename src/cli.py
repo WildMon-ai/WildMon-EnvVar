@@ -135,7 +135,6 @@ def _validate_and_build_config(raw: Dict[str, Any]) -> PipelineConfig:
         IMAGE_END_DATE=str(raw["IMAGE_END_DATE"]),
         MAX_SEARCH_DISTANCE_M_WATERDIST=int(raw["MAX_SEARCH_DISTANCE_M_WATERDIST"]),
         VARIABLES_ENABLED=raw.get("VARIABLES_ENABLED",{}),
-        # WORLDCLIM_VARIABLES=raw.get("WORLDCLIM_VARIABLES"),
         SERVICE_ACCOUNT=service_account,
         SERVICE_ACCOUNT_KEY_FILE=service_account_key_file,
     )
@@ -288,8 +287,8 @@ def run_pipeline(cfg: PipelineConfig,
             image=image_stack,
             region=aoi,
             file_name_prefix=prefix,
-            scale=200,
-            crs="EPSG:3857",
+            scale=cfg.SAMPLING_POINT_BUFFER_METERS,
+            crs="EPSG:4326",
             file_format="GeoTIFF",
         )
 
@@ -298,7 +297,9 @@ def run_pipeline(cfg: PipelineConfig,
         image_stack = image_stack.select(bands)
 
         logger.info("Generating H3 hexagonal grid and extracting values...")
-        hex_gdf = generate_h3_hexagon_grid(aoi=aoi, h3_resolution=cfg.HEXAGRID_RESOLUTION)
+        hex_gdf = generate_h3_hexagon_grid(aoi=aoi,
+                                           h3_resolution=cfg.HEXAGRID_RESOLUTION,
+                                           calculate_area=True)
         
         hexagons_with_data = extract_values_from_hexagons(
             hex_gdf=hex_gdf,

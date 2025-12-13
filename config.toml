@@ -18,9 +18,9 @@ LON_COLUMN_NAME = "longitude"
 # 🗺️ Spatial sampling & AOI settings
 # =====================================================================
 
-HEXAGRID_RESOLUTION = 5                 # H3 hexagon resolution
 SAMPLING_POINT_BUFFER_METERS = 200      # Buffer around each point for sampling statistics
 AOI_BUFFER_KM = 30                      # Buffer added around all points to define AOI 
+HEXAGRID_RESOLUTION = 5                 # H3 hexagon resolution
 
 
 # =====================================================================
@@ -36,14 +36,6 @@ IMAGE_END_DATE   = "2025-12-31"
 # =====================================================================
 
 MAX_SEARCH_DISTANCE_M_WATERDIST = 20000   # Max search radius for distance-to-water (meters)
-
-
-# =====================================================================
-# 🔐 Optional: Service account authentication
-# =====================================================================
-
-# SERVICE_ACCOUNT = "service-account@google-cloud-project.iam.gserviceaccount.com"
-# SERVICE_ACCOUNT_KEY_FILE = "/abs/path/to/service-account-key.json"
 
 
 # =====================================================================
@@ -80,3 +72,11 @@ bio16 = true
 bio17 = true
 bio18 = true
 bio19 = true
+
+
+# =====================================================================
+# 🔐 Optional: Service account authentication
+# =====================================================================
+
+# SERVICE_ACCOUNT = "service-account@google-cloud-project.iam.gserviceaccount.com"
+# SERVICE_ACCOUNT_KEY_FILE = "/abs/path/to/service-account-key.json"

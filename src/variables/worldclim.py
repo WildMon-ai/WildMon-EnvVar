@@ -163,7 +163,7 @@ def _log_extraction_summary(
 
     if valid_points == 0:
         return
-
+    # Should probably remove or generalize this
     if "bio01_mean" in result_df.columns and "bio01" in variables:
         temps = result_df["bio01_mean"].dropna()
         if not temps.empty:

@@ -214,7 +214,7 @@ def extract_values_from_hexagons(
     hex_gdf: gpd.GeoDataFrame,
     image_stack: ee.Image,
     default_scale: int = 100,
-    default_reducer: str = 'median',
+    default_reducer: str = 'mean',
     batch_size: int = 100,
     tileScale: int = 4,
 ) -> gpd.GeoDataFrame:
@@ -234,7 +234,7 @@ def extract_values_from_hexagons(
     - hex_gdf: gpd.GeoDataFrame, The GeoDataFrame containing the hexagons to sample.
     - image_stack: ee.Image, The image stack to sample from.
     - default_scale: int, The default scale to use for sampling. Default is 100.
-    - default_reducer: str, The default reducer to use for reducing the sampled values. Default is 'median'.
+    - default_reducer: str, The default reducer to use for reducing the sampled values. Default is 'mean'.
     - batch_size: int, The number of hexagons to process in each batch. Default is 100.
     - tileScale: int, The tile scale to use for the sampling. Default is 4. Increase up to 16 if having memory issues.
 

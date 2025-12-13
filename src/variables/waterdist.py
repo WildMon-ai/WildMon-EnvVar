@@ -256,7 +256,7 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     values = result_df.loc[valid_mask, column]
     logger.info(
         "Distance to water: "
-        f"median {values.median():.1f} m "
+        f"mean {values.mean():.1f} m "
         f"(min {values.min():.1f} m, max {values.max():.1f} m)"
     )
 
