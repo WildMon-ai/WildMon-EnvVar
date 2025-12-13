@@ -1,17 +1,82 @@
-GEE_PROJECT_ID = "wildmon-projects"
-LOCATIONS_CSV_PATH = "./input/configuration.csv"
-OUTPUT_CSV_PATH = "output/env_vars.csv"
+# =====================================================================
+# 🌍 Google Earth Engine configuration
+# =====================================================================
+
+GEE_PROJECT_ID = "wide-office-411000"
+
+
+# =====================================================================
+# 📥 Input data configuration
+# =====================================================================
+
+LOCATIONS_CSV_PATH = "input/locations.csv"
 LAT_COLUMN_NAME = "latitude"
 LON_COLUMN_NAME = "longitude"
-SAMPLING_POINT_BUFFER_METERS = 200
-AOI_BUFFER_KM = 30
-IMAGE_START_DATE = "2025-01-01"
-IMAGE_END_DATE = "2025-12-31"
-MAX_SEARCH_DISTANCE_M_WATERDIST = 20000
 
-# Optional: authenticate with a service account instead of the browser flow
+
+# =====================================================================
+# 🗺️ Spatial sampling & AOI settings
+# =====================================================================
+
+SAMPLING_POINT_BUFFER_METERS = 200      # Buffer around each point for sampling statistics
+AOI_BUFFER_KM = 30                      # Buffer added around all points to define AOI 
+HEXAGRID_RESOLUTION = 5                 # H3 hexagon resolution
+
+
+# =====================================================================
+# 🛰️ Image/time window configuration
+# =====================================================================
+
+IMAGE_START_DATE = "2025-01-01"
+IMAGE_END_DATE   = "2025-12-31"
+
+
+# =====================================================================
+# 💧 Water distance analysis
+# =====================================================================
+
+MAX_SEARCH_DISTANCE_M_WATERDIST = 20000   # Max search radius for distance-to-water (meters)
+
+
+# =====================================================================
+# 🌡️ Optional: Subselect Variables 
+# =====================================================================
+
+[VARIABLES_ENABLED]
+ndvi = true
+canopy_height = true
+agb = true
+land_cover = true
+distance_to_water_m = true
+biointactness = true
+nighttime_lights = true
+elevation = true
+slope_percent = true
+satellite_embedding = true
+bio01 = true
+bio02 = true
+bio03 = true
+bio04 = true
+bio05 = true
+bio06 = true
+bio07 = true
+bio08 = true
+bio09 = true
+bio10 = true
+bio11 = true
+bio12 = true
+bio13 = true
+bio14 = true
+bio15 = true
+bio16 = true
+bio17 = true
+bio18 = true
+bio19 = true
+
+
+# =====================================================================
+# 🔐 Optional: Service account authentication
+# =====================================================================
+
 # SERVICE_ACCOUNT = "service-account@google-cloud-project.iam.gserviceaccount.com"
 # SERVICE_ACCOUNT_KEY_FILE = "/abs/path/to/service-account-key.json"
-
-# Optional: WorldClim variables (comment out to use all)
-# WORLDCLIM_VARIABLES = ["bio01", "bio12"]

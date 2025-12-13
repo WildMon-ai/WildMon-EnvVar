@@ -2,7 +2,7 @@ import logging
 import ee
 import pandas as pd
 from sampling import merge_ee_sampling_results, build_variable_extractor
-from typing import Optional, Callable, Dict
+from typing import Optional, Dict
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
