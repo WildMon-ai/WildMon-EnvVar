@@ -21,7 +21,7 @@ from variables.biomass import extract_biomass
 from variables.bii import extract_bii
 from variables.canopy_height import extract_canopy_height
 from variables.elevation import extract_elevation, ELEVATION_BANDS
-from export import export_csv, export_rasters_to_gdrive, export_hexagrid_results
+from export import export_csv, export_rasters_to_gdrive, export_hexagrid_results, DEFAULT_IMAGE_EXPORT_CRS
 from variables.landcover import extract_landcover
 from variables.ndvi import extract_ndvi
 from variables.nighttime_lights import extract_nighttime_lights
@@ -288,7 +288,7 @@ def run_pipeline(cfg: PipelineConfig,
             region=aoi,
             file_name_prefix=prefix,
             scale=cfg.SAMPLING_POINT_BUFFER_METERS,
-            crs="EPSG:4326",
+            crs=DEFAULT_IMAGE_EXPORT_CRS,
             file_format="GeoTIFF",
         )
 
@@ -299,7 +299,8 @@ def run_pipeline(cfg: PipelineConfig,
         logger.info("Generating H3 hexagonal grid and extracting values...")
         hex_gdf = generate_h3_hexagon_grid(aoi=aoi,
                                            h3_resolution=cfg.HEXAGRID_RESOLUTION,
-                                           calculate_area=True)
+                                           calculate_area=True,
+                                           crs=DEFAULT_IMAGE_EXPORT_CRS)
         
         hexagons_with_data = extract_values_from_hexagons(
             hex_gdf=hex_gdf,

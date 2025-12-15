@@ -2,6 +2,8 @@ import ee
 import os
 import geopandas as gpd
 
+DEFAULT_IMAGE_EXPORT_CRS = "EPSG:4326"
+
 def export_rasters_to_gdrive(
     image: ee.Image,
     region: ee.Geometry,

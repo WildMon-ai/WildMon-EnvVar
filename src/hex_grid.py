@@ -10,7 +10,6 @@ from typing import List
 from tqdm.auto import tqdm
 from variables.landcover import LANDCOVER_CLASSES
 
-DEFAULT_CRS = 'EPSG:4326'
 
 BAND_CONFIG = {
     "biointactness": {"scale": 100, "reducer": "mean"},
@@ -149,6 +148,7 @@ def generate_h3_hexagon_grid(
     aoi: ee.Geometry,
     h3_resolution: int = 9,
     calculate_area: bool = True,
+    crs: str = "EPSG:4326",
 ) -> gpd.GeoDataFrame:
     """
     Generate a GeoDataFrame of hexagons covering an AOI using the H3 library.
@@ -196,7 +196,7 @@ def generate_h3_hexagon_grid(
     data = {"geometry": hex_geoms}
     data["h3_id"] = list(hex_ids)
 
-    hex_gdf = gpd.GeoDataFrame(data, crs=DEFAULT_CRS)
+    hex_gdf = gpd.GeoDataFrame(data, crs=crs)
 
     hex_gdf = hex_gdf[hex_gdf.intersects(aoi_geom)].copy()
 
@@ -290,7 +290,6 @@ def extract_values_from_hexagons(
                 collection=batch_fc,
                 reducer=scale_reducer,
                 scale=scale,
-                crs=DEFAULT_CRS,
                 tileScale=tileScale
             )
             
