@@ -139,6 +139,8 @@ The pipeline guarantees:
 | [**Above-ground biomass (AGB)**](https://gee-community-catalog.org/projects/cci_agb/?h=above+ground+biomass) | 100 m | median, sd | 2007,2010,2015-2022 | ESA CCI Global Forest Above Ground Biomass |
 | [**Nighttime lights (VIIRS)**](https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_DNB_ANNUAL_V22) | 464 m | median, sd | Annual composites (2012–2023) | Time-filtered by config window |
 | [**Elevation & slope (Copernicus)**](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_DEM_GLO30) | 30 m | median, sd | Static | Derived slope in percentage |
+| [**Biodiversity Intactness Index (BII)**](https://gee-community-catalog.org/projects/bii/) | 100 m | mean | 2017–2020 | Global BII annual composites |
+| [**Satellite embeddings (Google/DeepMind)**](https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_SATELLITE_EMBEDDING_V1_ANNUAL#bands) | 10 m | mean | 2017–2023 | 64-band annual embeddings; point stats only by default (rasters/hex grids not exported due to size) |
 
 
 All processing steps (scaling, masking, projections) are abstracted away.
