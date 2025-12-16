@@ -17,6 +17,7 @@ BAND_CONFIG = {
     "canopy_height": {"scale": 10, "reducer": "mean"},
     "elevation": {"scale": 30, "reducer": "mean"},
     "slope_percent": {"scale": 30, "reducer": "mean"},
+    "aspect": {"scale": 30, "reducer": "mean"},
     "land_cover": {"scale": 10, "reducer": "mode"},
     "ndvi": {"scale": 30, "reducer": "mean"},
     "nighttime_lights": {"scale": 464, "reducer": "mean"},
