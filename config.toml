@@ -52,6 +52,7 @@ biointactness = true
 nighttime_lights = true
 elevation = true
 slope_percent = true
+aspect = true
 satellite_embedding = true
 bio01 = true
 bio02 = true

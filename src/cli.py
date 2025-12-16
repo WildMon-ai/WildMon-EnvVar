@@ -218,6 +218,8 @@ def run_pipeline(cfg: PipelineConfig,
             df = df.drop(columns=[c for c in df.columns if c.startswith("slope_percent_")], errors="ignore")
         if "elevation" not in elev_bands_enabled:
             df = df.drop(columns=[c for c in df.columns if c.startswith("elevation_")], errors="ignore")
+        if "aspect" not in elev_bands_enabled:
+            df = df.drop(columns=[c for c in df.columns if c.startswith("aspect_")], errors="ignore")
         images.append(image_elevation.select(elev_bands_enabled))
 
     if cfg.VARIABLES_ENABLED.get("distance_to_water_m", False):
