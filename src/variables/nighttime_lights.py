@@ -40,7 +40,7 @@ def extract_nighttime_lights(
 
     Returns:
         (result_df, nightlights_image):
-            result_df: DataFrame with nightlights_mean/nightlights_std columns.
+            result_df: DataFrame with nighttime_lights_mean/nighttime_lights_std columns.
             nightlights_image: ee.Image used for the extraction.
     """
     logger.info("-----------------------------------------------")
@@ -118,8 +118,8 @@ def _merge_nighttime_light_results(
 ) -> pd.DataFrame:
     """Merge nighttime lights sampling output into a dataframe copy."""
     column_map = {
-        "nightlights_mean": f"{NIGHTTIME_LIGHTS_BAND}_mean",
-        "nightlights_std": f"{NIGHTTIME_LIGHTS_BAND}_stdDev",
+        "nighttime_lights_mean": f"{NIGHTTIME_LIGHTS_BAND}_mean",
+        "nighttime_lights_std": f"{NIGHTTIME_LIGHTS_BAND}_stdDev",
     }
     return merge_ee_sampling_results(df, results, column_map)
 
@@ -127,7 +127,7 @@ def _merge_nighttime_light_results(
 def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     """Log summary statistics for the extracted nighttime lights values."""
     total_points = len(result_df)
-    valid_mask = result_df["nightlights_mean"].notna()
+    valid_mask = result_df["nighttime_lights_mean"].notna()
     valid_points = valid_mask.sum()
 
     logger.info(
@@ -137,7 +137,7 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     if valid_points == 0:
         return
 
-    values = result_df.loc[valid_mask, "nightlights_mean"]
+    values = result_df.loc[valid_mask, "nighttime_lights_mean"]
     logger.info(
         "Nighttime lights mean: "
         f"{values.mean():.2f} ± {values.std():.2f} "
