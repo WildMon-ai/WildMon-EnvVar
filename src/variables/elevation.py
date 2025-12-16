@@ -51,13 +51,13 @@ def extract_elevation(
             elev_slope_image: elevation and slope ee.Image used for the computation.
     """
     logger.info("-----------------------------------------------")
-    logger.info(f"Starting --Elevation & Slope-- extraction...")
+    logger.info(f"Starting --Elevation/Slope/Aspect-- extraction...")
     logger.info(f"Scale: {scale}m")
 
     logger.info("Loading SRTM elevation dataset...")
     elevation_slope_aspect_image = _load_elevation_slope_aspect_composite(aoi)
 
-    logger.info("Extracting elevation and slope statistics...")
+    logger.info("Extracting elevation/slope/aspect statistics...")
     compute_elev_stats = build_variable_extractor(elevation_slope_aspect_image,
                                                   ELEVATION_BANDS,
                                                   scale)
@@ -67,7 +67,7 @@ def extract_elevation(
     logger.info("Fetching results from Earth Engine...")
     results = _fetch_elevation_results(fc_stats)
 
-    logger.info("Merging elevation and slope values into dataframe...")
+    logger.info("Merging elevation/slope/aspect values into dataframe...")
     result_df = _merge_elevation_results(df, results)
 
     _log_extraction_summary(result_df)
@@ -184,6 +184,10 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     )
     logger.info(
         f"Successfully processed {valid_slope}/{total_points} points with slope data"
+    )
+    
+    logger.info(
+        f"Successfully processed {valid_aspect}/{total_points} points with aspect data"
     )
 
     if valid_elevation > 0:
