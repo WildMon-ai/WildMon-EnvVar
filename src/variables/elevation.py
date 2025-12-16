@@ -10,7 +10,8 @@ ELEVATION_COLLECTION_ID = "COPERNICUS/DEM/GLO30"
 ELEVATION_SOURCE_BAND = "DEM"
 ELEVATION_BAND = "elevation"
 SLOPE_BAND = "slope_percent"
-ELEVATION_BANDS = [ELEVATION_BAND, SLOPE_BAND]
+ASPECT_BAND = "aspect"
+ELEVATION_BANDS = [ELEVATION_BAND, SLOPE_BAND, ASPECT_BAND]
 DEG_TO_RAD = math.pi / 180.0
 
 
@@ -54,10 +55,10 @@ def extract_elevation(
     logger.info(f"Scale: {scale}m")
 
     logger.info("Loading SRTM elevation dataset...")
-    elevation_slope_image = _load_elevation_slope_composite(aoi)
+    elevation_slope_aspect_image = _load_elevation_slope_aspect_composite(aoi)
 
     logger.info("Extracting elevation and slope statistics...")
-    compute_elev_stats = build_variable_extractor(elevation_slope_image,
+    compute_elev_stats = build_variable_extractor(elevation_slope_aspect_image,
                                                   ELEVATION_BANDS,
                                                   scale)
 
@@ -70,15 +71,16 @@ def extract_elevation(
     result_df = _merge_elevation_results(df, results)
 
     _log_extraction_summary(result_df)
-    return result_df, elevation_slope_image
+    return result_df, elevation_slope_aspect_image
 
-def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
+def _load_elevation_slope_aspect_composite(aoi: ee.Geometry) -> ee.Image:
     """
     Load COPERNICUS GLO30 DEM and derive slope, clipped to AOI.
 
     Returns an ee.Image with bands:
         - 'elevation'      (meters above sea level)
         - 'slope_percent'  (percent rise/run)
+        - 'aspect'         (degrees, 0-360; 0=North, 90=East, 180=South, 270=West)
     """
     dem_ic = (
         ee.ImageCollection(ELEVATION_COLLECTION_ID)
@@ -92,8 +94,12 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
     # but it doesnt work correctly otherwise.
     slope_ic = dem_ic.map(_per_tile_slope_percent)
     slope = slope_ic.median().toFloat()
-
-    return elevation.addBands(slope).clip(aoi)
+    
+    # Compute aspect (degrees)
+    aspect_ic = dem_ic.map(_per_tile_aspect)
+    aspect = aspect_ic.median().toFloat()
+        
+    return elevation.addBands(slope).addBands(aspect).clip(aoi)
 
 def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
     """
@@ -104,6 +110,20 @@ def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
     slope_deg = ee.Terrain.slope(img)           
     slope_pct = _slope_deg_to_percent(slope_deg)
     return slope_pct.rename(SLOPE_BAND)
+
+def _per_tile_aspect(img: ee.Image) -> ee.Image:
+    """
+    Compute aspect (slope orientation) for a single DEM tile.
+    Input: DEM heights in meters.
+    Output: aspect in degrees (0-360), where:
+        - 0° = North
+        - 90° = East
+        - 180° = South
+        - 270° = West
+    Output band name: 'aspect'.
+    """
+    aspect_deg = ee.Terrain.aspect(img)
+    return aspect_deg.rename(ASPECT_BAND)
 
 def _slope_deg_to_percent(slope_deg: ee.Image) -> ee.Image:
     """Convert slope from degrees to percent (rise/run * 100)."""
@@ -137,12 +157,16 @@ def _merge_elevation_results(
         - elevation_stdDev
         - slope_mean
         - slope_stdDev
+        - aspect_mean
+        - aspect_stdDev
     """
     column_map = {
         "elevation_mean": f"{ELEVATION_BAND}_mean",
         "elevation_std": f"{ELEVATION_BAND}_stdDev",
         "slope_percent_mean": f"{SLOPE_BAND}_mean",
         "slope_percent_std": f"{SLOPE_BAND}_stdDev",
+        "aspect_mean": f"{ASPECT_BAND}_mean",
+        "aspect_std": f"{ASPECT_BAND}_stdDev",
     }
     
     return merge_ee_sampling_results(df, results, column_map)
@@ -153,7 +177,8 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     total_points = len(result_df)
     valid_elevation = result_df["elevation_mean"].notna().sum()
     valid_slope = result_df["slope_percent_mean"].notna().sum()
-
+    valid_aspect = result_df["aspect_mean"].notna().sum()
+    
     logger.info(
         f"Successfully processed {valid_elevation}/{total_points} points with elevation data"
     )
@@ -175,3 +200,11 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
             f"{slope_values.mean():.2f} ± {slope_values.std():.2f} deg "
             f"(range {slope_values.min():.2f}-{slope_values.max():.2f} deg)"
         )
+
+    if valid_aspect > 0:
+            aspect_values = result_df["aspect_mean"].dropna()
+            logger.info(
+                "Aspect mean: "
+                f"{aspect_values.mean():.2f} ± {aspect_values.std():.2f} deg "
+                f"(range {aspect_values.min():.2f}-{aspect_values.max():.2f} deg)"
+            )
