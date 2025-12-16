@@ -9,6 +9,7 @@ from sampling import build_variable_extractor, merge_ee_sampling_results
 BIOMASS_COLLECTION_ID = "projects/sat-io/open-datasets/ESA/ESA_CCI_AGB"
 BIOMASS_SOURCE_BAND = "AGB"
 BIOMASS_BAND = BIOMASS_SOURCE_BAND.lower()
+BIOMASS_FINAL_NAME = "biomass"
 DEFAULT_SCALE = 100
 AVAILABLE_YEARS = [
     2007,
@@ -73,7 +74,7 @@ def extract_biomass(
     result_df = _merge_biomass_results(df, results)
 
     _log_extraction_summary(result_df)
-    return result_df, biomass_image
+    return result_df, biomass_image.rename(BIOMASS_FINAL_NAME)
 
 
 def _load_biomass_image(
