@@ -37,16 +37,19 @@ S02,-11.8501,-72.3902
 
 You can **run the pipeline using this file immediately** for testing, or replace it with your own CSV (any file with at least `latitude` and `longitude` columns is valid).
 
-Point your `config.toml` to either the example file or your own.
+Adjust `LOCATIONS_CSV_PATH` in your `config.toml` to point to your own file if you use a different file name.
 
 ### 1. Clone and install via [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
+After installing `uv`:
+
 ```bash
-git clone https://github.com/<your-org>/ds-gis-pipeline.git
+git clone https://github.com/WildMon-ai/ds-gis-pipeline.git
 cd ds-gis-pipeline
 uv sync
 ```
 
 ### 2. Authenticate with [Google Cloud / Earth Engine](https://docs.cloud.google.com/sdk/docs/install-sdk)
+After installing `gcloud`:
 
 ```bash
 gcloud auth application-default login
@@ -167,7 +170,7 @@ Key required settings:
 
 ---
 
-## 🖥 CLI Usage (recommended)
+## 🖥 CLI Usage
 
 ```bash
 uv run python src.cli --config config.toml \
@@ -239,6 +242,7 @@ Under the hood:
 ---
 
 ## 🔒 Authentication Options
+Before running any code you'll need access to the GCP project where your GEE is setup. You can do that in two anys:
 
 ### Default (recommended)
 
