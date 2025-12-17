@@ -61,7 +61,7 @@ gcloud config set project <your-gcp-project-id>
 After providing a csv (comma separated) with at least two columns representing latitude and longitude of your sites
 
 ```bash
-uv run python src/cli --config config.toml
+uv run python src/cli.py --config config.toml
 ```
 
 Optional flags:
