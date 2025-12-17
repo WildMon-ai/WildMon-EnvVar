@@ -21,14 +21,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-import pandas as pd
-import logging
-from typing import Tuple
-
-# Assume logger and logging setup are configured elsewhere (as in your final code)
-logger = logging.getLogger(__name__)
-
-
 # =============================================================================
 # RASTER PLOTTING
 # =============================================================================
@@ -478,12 +470,6 @@ def plot_map(
 # =============================================================================
 
 
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
 def _get_band_min_max(
     image: ee.Image,
     band: str,
@@ -532,6 +518,7 @@ def _get_band_min_max(
 def plot_images(
     image: ee.Image,
     aoi: ee.Geometry,
+    points_fc: ee.FeatureCollection,
     filter_bands: Optional[Union[str, List[str]]] = None,
     palette: Optional[List[str]] = None,
     scale: int = 100,
@@ -546,6 +533,7 @@ def plot_images(
     Args:
         image: Earth Engine image to plot
         aoi: Area of interest geometry
+        points_fc: FeatureCollection of locations points
         filter_bands: Band name or list of band names to plot (default: all bands)
         palette: Color palette for visualization (default: blue-green-red)
         scale: Scale for min/max calculation in meters
@@ -648,6 +636,12 @@ def plot_images(
             
         except Exception as e:
             logger.error(f"Error plotting band '{band}': {e}")
+    
+    map_object.addLayer(
+        points_fc,
+        {"color": "yellow"},
+        "Buffered sampling points"
+    )
     
     # Add layer controls
     map_object.addLayerControl()

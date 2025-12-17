@@ -115,7 +115,7 @@ We recomend using those only after selecting the final env vars due to computati
 ```
 ---
 
-## 📝 Example Output (CSV)
+## 📝 Example Site Level Env Vars Output (CSV)
 
 | site_id | latitude | longitude | ndvi_mean | canopy_height | dist_water | bio1 | bio12 | landcover | ... |
 | ------- | -------- | --------- | --------- | ------------- | ---------- | ---- | ----- | --------- | --- |
@@ -161,12 +161,11 @@ Key required settings:
 | `LAT_COLUMN_NAME` / `LON_COLUMN_NAME`                   | Location's geographic coordinate column names                  |
 | `SAMPLING_POINT_BUFFER_METERS`                          | Radius for buffered sampling, pixels within that buffered area will be used to summarize the variation for each site           |
 | `AOI_BUFFER_KM`                                         | Buffer added to bounding box of points (AOI) |
+| `HEXAGRID_RESOLUTION`                                   | H3 resolution when exporting hex grids (default 9 ≈ 183 m radius), more details [here](#hexagon-grid-extraction-h3) |
 | `IMAGE_START_DATE` / `IMAGE_END_DATE`                   | Date range for NDVI/lights and other variables that have multi-year images             |
 | `MAX_SEARCH_DISTANCE_M_WATERDIST`                       | Max radius for water distance, values above that will be set to max value + 1          |
-| `HEXAGRID_RESOLUTION`                                   | H3 resolution when exporting hex grids (default 9 ≈ 183 m radius), more details [here](#hexagon-grid-extraction-h3) |
-| Optional: `WORLDCLIM_VARIABLES`                         | Subset of variables to extract         |
 | Optional: `SERVICE_ACCOUNT`, `SERVICE_ACCOUNT_KEY_FILE` | For automated runs                     |
-
+| Optional: `Subselect Variables` | If you are only interested in a subset of variables                     |
 
 ---
 
@@ -180,15 +179,15 @@ uv run python src.cli --config config.toml \
 
 Suggested workflow:
 
-1. Run basic extraction (summary CSV) first without rasters and hexa-grid.
+1. Run basic site-level extraction (summary CSV) first without rasters and hexa-grid.
 2. When needed, export rasters for GIS debugging or modeling.
 3. Use hex-grids for spatial projections (downstream SDMs, maps, etc.).
 
 Outputs:
 
-* `output/site_env_vars.csv`
+* Site-level Environmental Variables: `output/site_env_vars.csv`
 * Optional: raster GeoTIFFs directly saved to the root of your Google Drive
-* Optional: hex grids (`output/hexgrids.*`)
+* Optional: hex grids (`output/hexgrids.*`) in `.shp`, `.gpkg`, and `csv` formats
 
 ---
 
