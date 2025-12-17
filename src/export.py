@@ -7,8 +7,7 @@ DEFAULT_IMAGE_EXPORT_CRS = "EPSG:4326"
 def export_rasters_to_gdrive(
     image: ee.Image,
     region: ee.Geometry,
-    file_name_prefix: str,
-    # gdrive_folder: str = "EE_exports", # Currently not very useful as each band is exported to its own folder even if they have same folder name
+    file_name_prefix: str = "",
     scale: int = 30,
     crs: str = "EPSG:4326",
     file_format: str = "GeoTIFF",
@@ -37,11 +36,13 @@ def export_rasters_to_gdrive(
     for band in band_names:
         single_band = (
             image.select(band)
-                 .reproject(ee.Projection(crs).atScale(scale))
                  .clip(region)
         )
 
-        file_name = f"{file_name_prefix}_{band}"
+        if file_name_prefix == "":
+            file_name = band
+        else:
+            file_name = f"{file_name_prefix}_{band}"
 
         task = ee.batch.Export.image.toDrive(
             image=single_band,
