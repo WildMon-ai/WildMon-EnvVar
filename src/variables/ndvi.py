@@ -1,6 +1,7 @@
 import logging
 import ee
 import pandas as pd
+from variables.water import load_water_layers, build_combined_water_mask
 from sampling import merge_ee_sampling_results, build_variable_extractor
 from typing import Optional, Dict
 
@@ -95,8 +96,11 @@ def _build_ndvi_composite(
                                                      end_date,
                                                      cloud_cover_threshold)
     base_projection = collection.first().projection()
-    water_mask = _load_water_mask(aoi,
-                                  base_projection) if mask_water else None
+
+    glcf_water, osm_water = load_water_layers(aoi=aoi)
+    water_mask = build_combined_water_mask(glcf_water=glcf_water,
+                                           osm_water=osm_water,
+                                           aoi=aoi)
 
     composite = collection.map(
         lambda img: _process_landsat_image(img,

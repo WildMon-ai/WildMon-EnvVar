@@ -4,6 +4,7 @@ from typing import Dict, Optional, Tuple
 import ee
 import pandas as pd
 
+from variables.water import load_water_layers, build_combined_water_mask
 from sampling import merge_ee_sampling_results
 
 GLCF_WATER_COLLECTION_ID = "GLCF/GLS_WATER"
@@ -42,19 +43,17 @@ def extract_distance_to_water(
     logger.info(f"Max search distance: {max_search_distance}m, pixels beyond this will be set to {max_search_distance + 1}m")
 
     logger.info("Loading water datasets at native resolution...")
-    glcf_water = _load_water_layer(aoi=aoi,
-                                   image_collection_id=GLCF_WATER_COLLECTION_ID)
-    
-    osm_water = _load_water_layer(aoi=aoi,
-                                  image_collection_id=OSM_WATER_DATASET_ID,
-                                  projection_object=glcf_water.projection())
-
+    glcf_water, osm_water = load_water_layers(aoi=aoi)
     logger.info("Combining water layers...")
-    combined_mask = _prepare_water_layers(glcf_water, osm_water, aoi)
+    water_mask = build_combined_water_mask(glcf_water=glcf_water,
+                                           osm_water=osm_water,
+                                           for_water_distance=True,
+                                           aoi=aoi)
+
 
     logger.info("Building distance surface using FDT...")
     distance_image = _build_distance_image_fdt(
-        combined_mask,
+        water_mask,
         aoi,
         max_search_distance_m=max_search_distance,
     )
@@ -69,7 +68,7 @@ def extract_distance_to_water(
     logger.info("Merging distances into dataframe...")
     result_df = _merge_distance_results(df, results)
 
-    water_and_distance_bands = combined_mask.addBands(distance_image)
+    water_and_distance_bands = water_mask.addBands(distance_image)
 
     _log_extraction_summary(result_df)
     return result_df, water_and_distance_bands
@@ -115,21 +114,12 @@ def _prepare_water_layers(
     # GLCF: 2 = Water
     glcf_mask = glcf_water.eq(2)
 
-    # OSM: classes 1..5 = Water
+    # OSM: classes 1-5 = Water
     osm_mask = osm_water.gt(0).And(osm_water.lt(6))
 
     combined = glcf_mask.Or(osm_mask).rename(COMBINED_WATER_BAND)
 
-    # Project into metric CRS (Web Mercator) once for distance calculation
-    combined_metric = (
-        combined
-        .unmask(0)
-        .reproject(crs="EPSG:3857", scale=scale)
-        .selfMask()
-        .clip(aoi)
-    )
-
-    return combined_metric
+    return combined.selfMask()
 
 
 def _build_distance_image_fdt(
@@ -158,8 +148,6 @@ def _build_distance_image_fdt(
         .gt(0)
         .unmask(0)
         .toByte()
-        .reproject(proj)
-        .clip(aoi)
     )
 
     max_m = ee.Number(max_search_distance_m)
