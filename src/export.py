@@ -64,6 +64,7 @@ def export_rasters_to_gdrive(
 
 def export_csv(df, output_path: str):
     """Export a pandas DataFrame to CSV."""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
     df.to_csv(output_path, index=False)
     print(f"\nResult saved to {output_path}")
 

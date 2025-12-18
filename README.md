@@ -13,9 +13,9 @@ The pipeline provides a **reproducible, scalable, one-config-file workflow** to 
 
 * Extract environmental covariates for point locations (buffered geometries).
 * Automatically build an **Area of Interest (AOI)** from your coordinate set.
-* Support for 10+ global datasets:
-  NDVI, canopy height, land cover, bioclimate, biomass, nighttime lights, elevation, slope and distance to water. 
-* Export processed results to a tidy CSV.
+* Support for 29 global datasets:
+  NDVI, canopy height, land cover, bioclimate, biomass, nighttime lights, elevation, slope, distance to water, Biodiveristy Intactness Index (BII) and Google Satellite Embeddings. 
+* Export processed location level results to a tidy CSV.
 * **Optional:** export raw rasters as GeoTIFFs for GIS workflows.
 * **Optional:** build an **Hexagon grid** covering the AOI and extract per-hex statistics (useful for model projections).
 * CLI for hands-off, reproducible runs; Jupyter notebook for visual exploration.
@@ -151,6 +151,8 @@ All processing steps (scaling, masking, projections) are abstracted away.
 ---
 
 ## 🔧 Configuration (config.toml)
+
+The default values should give you a good starting point for most cases.
 
 Key required settings:
 
