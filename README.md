@@ -16,7 +16,7 @@ The pipeline provides a **reproducible, scalable, one-config-file workflow** to 
 * Support for 29 global datasets:
   NDVI, canopy height, land cover, bioclimate, biomass, nighttime lights, elevation, slope, distance to water, Biodiveristy Intactness Index (BII) and Google Satellite Embeddings. 
 * Export processed location level results to a tidy CSV.
-* **Optional:** export raw rasters as GeoTIFFs for GIS workflows.
+* **Optional:** export the AOI raw rasters as GeoTIFFs for GIS workflows directly to your Google Drive.
 * **Optional:** build an **Hexagon grid** covering the AOI and extract per-hex statistics (useful for model projections).
 * CLI for hands-off, reproducible runs; Jupyter notebook for visual exploration.
 * Config-driven design — easy to automate and version-control.
@@ -25,7 +25,12 @@ The pipeline provides a **reproducible, scalable, one-config-file workflow** to 
 
 ## 📦 Quickstart (30 seconds)
 
-### **Prerequisite: Input CSV**
+### **Prerequisite**:
+
+- [Python >=3.12](https://www.python.org/downloads/release/python-3120/)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- [Google cloud sdk](https://docs.cloud.google.com/sdk/docs/install-sdk)
+- Input CSV
 
 An example CSV is provided at `input/locations.csv`.
 
@@ -107,7 +112,7 @@ We recomend using those only after selecting the final env vars due to computati
             ▼                                         ▼
 
  Optional: Export rasters                      Optional: Build H3 hexgrid
-  (GeoTIFFs to Drive)                        inside AOI and extract stats
+  (GeoTIFFs to GDrive)                        inside AOI and extract stats
             │                                         │
             ▼                                         ▼
        GeoTIFF files                             Hexgrid stats file
@@ -142,7 +147,7 @@ The pipeline guarantees:
 | [**Above-ground biomass (AGB)**](https://gee-community-catalog.org/projects/cci_agb/?h=above+ground+biomass) | 100 m | median, sd | 2007,2010,2015-2022 | ESA CCI Global Forest Above Ground Biomass |
 | [**Nighttime lights (VIIRS)**](https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_DNB_ANNUAL_V22) | 464 m | median, sd | Annual composites (2012–2023) | Time-filtered by config window |
 | [**Elevation & slope (Copernicus)**](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_DEM_GLO30) | 30 m | median, sd | Static | Derived slope in percentage |
-| [**Biodiversity Intactness Index (BII)**](https://gee-community-catalog.org/projects/bii/) | 100 m | mean | 2017–2020 | Global BII annual composites |
+| [**Biodiversity Intactness Index (BII)**](https://gee-community-catalog.org/projects/bii/) | 100 m | mean, sd | 2017–2020 | Global BII annual composites |
 | [**Satellite embeddings (Google/DeepMind)**](https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_SATELLITE_EMBEDDING_V1_ANNUAL#bands) | 10 m | mean | 2017–2023 | 64-band annual embeddings; point stats only by default (rasters/hex grids not exported due to size) |
 
 
@@ -152,7 +157,7 @@ All processing steps (scaling, masking, projections) are abstracted away.
 
 ## 🔧 Configuration (config.toml)
 
-The default values should give you a good starting point for most cases.
+The default values should give you a good starting point for most cases. Make sure you adjust at least the GEE project ID.
 
 Key required settings:
 
@@ -161,11 +166,11 @@ Key required settings:
 | `GEE_PROJECT_ID`                                        | Google Cloud Project ID used for GEE billing/quotas    |
 | `LOCATIONS_CSV_PATH`                                    | Input CSV path with location's coordinates                         |
 | `LAT_COLUMN_NAME` / `LON_COLUMN_NAME`                   | Location's geographic coordinate column names                  |
-| `SAMPLING_POINT_BUFFER_METERS`                          | Radius for buffered sampling, pixels within that buffered area will be used to summarize the variation for each site           |
-| `AOI_BUFFER_KM`                                         | Buffer added to bounding box of points (AOI) |
+| `SAMPLING_POINT_BUFFER_METERS`                          | Radius for buffered sampling, pixels within that buffered area will be used to summarize the variation for each site. Should be set to represent your transect size or device range capibility. Default `200m` is optmized for Passive Acoustic Monitoring devices.           |
+| `AOI_BUFFER_KM`                                         | Buffer added to bounding box of points (AOI), defines area used for the raster and hexgrid exports |
 | `HEXAGRID_RESOLUTION`                                   | H3 resolution when exporting hex grids (default 9 ≈ 183 m radius), more details [here](#hexagon-grid-extraction-h3) |
-| `IMAGE_START_DATE` / `IMAGE_END_DATE`                   | Date range for NDVI/lights and other variables that have multi-year images             |
-| `MAX_SEARCH_DISTANCE_M_WATERDIST`                       | Max radius for water distance, values above that will be set to max value + 1          |
+| `IMAGE_START_DATE` / `IMAGE_END_DATE`                   | Date range for NDVI/nighttime lights and other variables that have multi-year images             |
+| `MAX_SEARCH_DISTANCE_M_WATERDIST`                       | Max radius for distance to water, pixels further than the threshold will be set to max value + 1          |
 | Optional: `SERVICE_ACCOUNT`, `SERVICE_ACCOUNT_KEY_FILE` | For automated runs                     |
 | Optional: `Subselect Variables` | If you are only interested in a subset of variables                     |
 
@@ -183,12 +188,12 @@ Suggested workflow:
 
 1. Run basic site-level extraction (summary CSV) first without rasters and hexa-grid.
 2. When needed, export rasters for GIS debugging or modeling.
-3. Use hex-grids for spatial projections (downstream SDMs, maps, etc.).
+3. Use hex-grids for spatial projections (downstream SDMs, maps, etc.) selecting only the final variables of interest for modelling.
 
 Outputs:
 
 * Site-level Environmental Variables: `output/site_env_vars.csv`
-* Optional: raster GeoTIFFs directly saved to the root of your Google Drive
+* Optional: AOI's raster GeoTIFFs directly saved to the root of your Google Drive
 * Optional: hex grids (`output/hexgrids.*`) in `.shp`, `.gpkg`, and `csv` formats
 
 ---
@@ -201,7 +206,7 @@ Launch:
 uv run jupyter notebook pipeline.ipynb
 ```
 
-The notebook mirrors the CLI flow, adds visualization tools, and supports quick parameter tuning. Useful for more interactive processes.
+The notebook mirrors the CLI flow, adds visualization tools, and supports quick parameter tuning like changing the dates or scale of each variable independently. Useful for more interactive processes.
 
 ---
 
@@ -237,6 +242,7 @@ Reference table for the different HEXAGRID_RESOLUTIONS values:
 Under the hood:
 
 * Band groups processed together to minimize GEE calls.
+* Use parallel computing on the server (GEE) side.
 * Operations batched to avoid memory/time limits.
 * Output formats: SHP, GeoPackage, CSV.
 
@@ -273,9 +279,6 @@ SERVICE_ACCOUNT_KEY_FILE = "/path/key.json"
 ## ⚠️ Notes & Performance Tips
 
 * Very large AOIs or fine-resolution hexgrids may exceed Earth Engine compute limits. If you experience difficulties we recommend downscaling the AOI or Hexgrid resolution.
-* Start small (few points), inspect results, then scale up.
-* Rasters export via Google Drive — ensure Drive API access is enabled.
-* If authentication fails, rerun `gcloud auth application-default login`.
 
 ---
 
