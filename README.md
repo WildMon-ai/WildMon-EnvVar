@@ -54,7 +54,7 @@ Make sure you change the parameter default `GEE_PROJECT_ID` parameter in your `c
 
 ### 3. Run the pipeline
 
-An example CSV with the locations you want to acquire information is provided at `input/locations.csv`.
+An example CSV with the locations you want to acquire information for is provided at `input/locations.csv`.
 
 ```csv
 site_id,latitude,longitude
