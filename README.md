@@ -64,7 +64,7 @@ S02,-11.8501,-72.3902
 
 You can **run the pipeline using this file immediately** for testing, or replace it with your own CSV containing your locations' coordinates. It needs to contain at least the `latitude` and `longitude` columns.
 
-*If you chose use a different file name instead of editing the current locations file, adjust the parameter `LOCATIONS_CSV_PATH` in your `config.toml` file  to point to your new file.*
+*If you chose to use a different file name instead of editing the current locations file, adjust the parameter `LOCATIONS_CSV_PATH` in your `config.toml` file to point to your new file instead.*
 
 Then in your terminal run:
 
@@ -210,11 +210,19 @@ Outputs:
 
 For users that want a more interactive process during the pipeline, or wish to control some of the more specialized parametes, such as the per variable scale, we offer a jupyter notebook. The notebook mirrors the CLI flow, but adds visualization tools, and supports quick parameter tuning like changing the dates or scale of each variable independently. Useful for more interactive processes.
 
-Launch:
+We recommend opening the notebook in VSCODE, but you alson have the option to launch it via terminal using:
 
+Run this one time only to install the virtual environment:
+```bash
+uv run python -m ipykernel install --user --name ds-gis-pipeline
+```
+
+Then launch:
 ```bash
 uv run jupyter notebook pipeline.ipynb
 ```
+
+Change the virtual environment on the box on the top of right of the notebook from `Python 3` to `ds-gis-pipeline`
 
 ---
 
