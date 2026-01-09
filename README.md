@@ -26,26 +26,14 @@ The pipeline provides a **reproducible, scalable, one-config-file workflow** to 
 ## 📦 Quickstart (30 seconds)
 
 ### **Prerequisite**:
-
+Install:
 - [Python >=3.12](https://www.python.org/downloads/release/python-3120/)
-- [uv](https://docs.astral.sh/uv/getting-started/installation/)
-- [Google cloud sdk](https://docs.cloud.google.com/sdk/docs/install-sdk)
-- Input CSV
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) to setup packages
+- [Google cloud sdk](https://docs.cloud.google.com/sdk/docs/install-sdk) to authenticate into you gcloud account with GEE access
 
-An example CSV is provided at `input/locations.csv`.
 
-```csv
-site_id,latitude,longitude
-S01,-11.7234,-72.4567
-S02,-11.8501,-72.3902
-```
-
-You can **run the pipeline using this file immediately** for testing, or replace it with your own CSV (any file with at least `latitude` and `longitude` columns is valid).
-
-Adjust `LOCATIONS_CSV_PATH` in your `config.toml` to point to your own file if you use a different file name.
-
-### 1. Clone and install via [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
-After installing `uv`:
+### 1. Clone repo and install via [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
+After installing `uv`, download the code from this repository, and create the project environment using your terminal:
 
 ```bash
 git clone https://github.com/WildMon-ai/ds-gis-pipeline.git
@@ -54,16 +42,32 @@ uv sync
 ```
 
 ### 2. Authenticate with [Google Cloud / Earth Engine](https://docs.cloud.google.com/sdk/docs/install-sdk)
-After installing `gcloud`:
+After installing the `google cloud sdk`, authenticate into your GCP project:
 
 ```bash
 gcloud auth application-default login
 gcloud config set project <your-gcp-project-id>
 ```
+*OBS: Your GCP project needs to have [GEE enabled](https://developers.google.com/earth-engine/guides/access). If you are not the GCP owner you need `serviceusage.serviceUsageConsumer` role, or a custom role with the `serviceusage.services.use` permission.* More details [here](https://developers.google.com/earth-engine/guides/access_control). 
+
+Make sure you change the parameter default `GEE_PROJECT_ID` parameter in your `config.toml` to a GCP project id in which you have GEE permissions.
 
 ### 3. Run the pipeline
 
-After providing a csv (comma separated) with at least two columns representing latitude and longitude of your sites
+An example CSV with the locations you want to acquire information is provided at `input/locations.csv`.
+
+```csv
+site_id,latitude,longitude
+S01,-11.7234,-72.4567
+S02,-11.8501,-72.3902
+```
+
+You can **run the pipeline using this file immediately** for testing, or replace it with your own CSV containing your locations' coordinates. It needs to contain at least the `latitude` and `longitude` columns.
+
+*If you chose use a different file name instead of editing the current locations file, adjust the parameter `LOCATIONS_CSV_PATH` in your `config.toml` file  to point to your new file.*
+
+Then in your terminal run:
+
 
 ```bash
 uv run python src/cli.py --config config.toml
@@ -121,6 +125,7 @@ We recomend using those only after selecting the final env vars due to computati
 ---
 
 ## 📝 Example Site Level Env Vars Output (CSV)
+Once you run the pipeline that's how your basic output should look like:
 
 | site_id | latitude | longitude | ndvi_mean | canopy_height | dist_water | bio1 | bio12 | landcover | ... |
 | ------- | -------- | --------- | --------- | ------------- | ---------- | ---- | ----- | --------- | --- |
@@ -135,7 +140,8 @@ The pipeline guarantees:
 
 ---
 
-## 📁 Available Datasets (and how they’re processed)
+## 📁 Available Datasets
+Currently, the following datasets are available and that's how they are processed.
 
 | Dataset | Scale | Reducer | Temporal range | Notes |
 | --- | --- | --- | --- | --- |
@@ -151,13 +157,15 @@ The pipeline guarantees:
 | [**Satellite embeddings (Google/DeepMind)**](https://developers.google.com/earth-engine/datasets/catalog/GOOGLE_SATELLITE_EMBEDDING_V1_ANNUAL#bands) | 10 m | mean | 2017–2023 | 64-band annual embeddings; point stats only by default (rasters/hex grids not exported due to size) |
 
 
-All processing steps (scaling, masking, projections) are abstracted away.
+All processing steps (scaling, masking, projections) are abstracted away from the user.
 
 ---
 
 ## 🔧 Configuration (config.toml)
 
-The default values should give you a good starting point for most cases. Make sure you adjust at least the GEE project ID.
+To run the pipeline, there are a series of parameters that control the process. The default values should give you a good starting point for most cases, but can be tweaked for more specialized usage or fine grained control. Below we describe what each parameters does.
+
+*Make sure you adjust at least the GEE project ID.*
 
 Key required settings:
 
@@ -200,13 +208,13 @@ Outputs:
 
 ## 🗺 Interactive Notebook
 
+For users that want a more interactive process during the pipeline, or wish to control some of the more specialized parametes, such as the per variable scale, we offer a jupyter notebook. The notebook mirrors the CLI flow, but adds visualization tools, and supports quick parameter tuning like changing the dates or scale of each variable independently. Useful for more interactive processes.
+
 Launch:
 
 ```bash
 uv run jupyter notebook pipeline.ipynb
 ```
-
-The notebook mirrors the CLI flow, adds visualization tools, and supports quick parameter tuning like changing the dates or scale of each variable independently. Useful for more interactive processes.
 
 ---
 
@@ -215,8 +223,8 @@ The notebook mirrors the CLI flow, adds visualization tools, and supports quick 
 When `--export-hexa-grid` is enabled:
 
 * AOI is tiled using an H3 grid (default resolution 9 ≈ 183 m radius).
-* The same variables extracted for points are aggregated per hexagon.
-* Useful for modeling workflows that require continuous spatial predictions.
+* The same variables extracted for location points are aggregated and extracted per hexagon in the AOI grid.
+* This iseful for modeling workflows that require continuous spatial predictions/projections.
 
 Reference table for the different HEXAGRID_RESOLUTIONS values:
 | Resolution | Area (km²) | Area (m²)        | Area (ha)        | Approximate Radius (m) |
