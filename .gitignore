@@ -219,7 +219,8 @@ __marimo__/
 **/*.prj
 **/*.shx
 **/*.gpkg
-
+**/*geojson
+output/
 .vscode
 # MacOS
 .DS_Store
