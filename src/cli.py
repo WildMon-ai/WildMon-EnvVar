@@ -21,7 +21,7 @@ from variables.biomass import extract_biomass
 from variables.bii import extract_bii
 from variables.canopy_height import extract_canopy_height
 from variables.elevation import extract_elevation, ELEVATION_BANDS
-from export import export_csv, export_rasters_to_gdrive, export_hexagrid_results, DEFAULT_IMAGE_EXPORT_CRS
+from export import export_aoi_geojson, export_csv, export_rasters_to_gdrive, export_hexagrid_results, DEFAULT_IMAGE_EXPORT_CRS
 from variables.landcover import extract_landcover
 from variables.ndvi import extract_ndvi
 from variables.nighttime_lights import extract_nighttime_lights
@@ -35,6 +35,7 @@ from variables.satellite_embedding import extract_satellite_embedding
 
 logger = logging.getLogger(__name__)
 
+OUTPUT_AOI_PATH = "output/aoi.geojson" 
 OUTPUT_SITE_ENV_VARS_PATH = "output/site_env_vars.csv"
 OUTPUT_HEXAGRID = "output/hexagrid"
 
@@ -163,7 +164,7 @@ def run_pipeline(cfg: PipelineConfig,
         buffer_meters=cfg.SAMPLING_POINT_BUFFER_METERS,
     )
     aoi = create_aoi_from_coordinates(df, buffer_km=cfg.AOI_BUFFER_KM)
-
+    export_aoi_geojson(aoi=aoi, output_path=OUTPUT_AOI_PATH)
     
     def _year_from_date(date_str: str) -> int:
         return int(str(date_str).split("-")[0])

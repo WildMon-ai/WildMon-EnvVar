@@ -1,5 +1,6 @@
 import ee
 import os
+import json
 import geopandas as gpd
 
 DEFAULT_IMAGE_EXPORT_CRS = "EPSG:4326"
@@ -74,3 +75,11 @@ def export_hexagrid_results(gdf: gpd.GeoDataFrame, output_path: str):
     gdf.to_file(output_path + ".shp")
     gdf.to_file(output_path + ".gpkg")
     print(f"\nResult saved to {output_path}")
+    
+
+def export_aoi_geojson(aoi, output_path: str):
+    """Export AOI GeoDataFrame to GeoJSON."""
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    # Save locally (geometry-only, flexible)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(aoi.getInfo(), f)
