@@ -17,6 +17,7 @@ import pandas as pd
 from auth import AuthenticationService
 from aoi import create_aoi_from_coordinates
 from hex_grid import generate_h3_hexagon_grid, extract_values_from_hexagons
+from variables.eii import extract_eii
 from variables.biomass import extract_biomass
 from variables.bii import extract_bii
 from variables.canopy_height import extract_canopy_height
@@ -255,7 +256,14 @@ def run_pipeline(cfg: PipelineConfig,
             points_feature_collection=points_fc,
             year=end_year,
         )
-
+    
+    if cfg.VARIABLES_ENABLED.get("eii", False):
+        df, image_eii = extract_eii(
+            df=df,
+            aoi=aoi,
+            points_feature_collection=points_fc,
+        )
+        images.append(image_eii)
 
     worldclim_enabled = [
     band
