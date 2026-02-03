@@ -86,14 +86,15 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
         .select(ELEVATION_SOURCE_BAND)
     )
 
-    elevation = dem_ic.median().rename(ELEVATION_BAND).toFloat()
+    dem = dem_ic.median().toFloat()
+    dem = dem.rename(ELEVATION_BAND)
 
-    # I haven't fully understood why a map is necessary to compute slope here,
-    # but it doesnt work correctly otherwise.
-    slope_ic = dem_ic.map(_per_tile_slope_percent)
-    slope = slope_ic.median().toFloat()
+    dem = dem.setDefaultProjection(dem_ic.first().projection())
 
-    return elevation.addBands(slope).clip(aoi)
+    slope_deg = ee.Terrain.slope(dem)
+    slope_pct = _slope_deg_to_percent(slope_deg).rename(SLOPE_BAND).toFloat()
+
+    return dem.addBands(slope_pct).clip(aoi)
 
 def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
     """
