@@ -96,15 +96,6 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
 
     return dem.addBands(slope_pct).clip(aoi)
 
-def _per_tile_slope_percent(img: ee.Image) -> ee.Image:
-    """
-    Compute slope in percent for a single DEM tile.
-    Input: DEM heights in meters.
-    Output band name: 'slope_percent'.
-    """
-    slope_deg = ee.Terrain.slope(img)           
-    slope_pct = _slope_deg_to_percent(slope_deg)
-    return slope_pct.rename(SLOPE_BAND)
 
 def _slope_deg_to_percent(slope_deg: ee.Image) -> ee.Image:
     """Convert slope from degrees to percent (rise/run * 100)."""
