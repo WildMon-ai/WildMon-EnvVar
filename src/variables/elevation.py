@@ -85,13 +85,10 @@ def _load_elevation_slope_composite(aoi: ee.Geometry) -> ee.Image:
         .filterBounds(aoi)
         .select(ELEVATION_SOURCE_BAND)
     )
+    ref_proj = dem_ic.first().projection()
+    dem = dem_ic.median().toFloat().rename(ELEVATION_BAND)
 
-    dem = dem_ic.median().toFloat()
-    dem = dem.rename(ELEVATION_BAND)
-
-    dem = dem.setDefaultProjection(dem_ic.first().projection())
-
-    slope_deg = ee.Terrain.slope(dem)
+    slope_deg = ee.Terrain.slope(dem.reproject(ref_proj))
     slope_pct = _slope_deg_to_percent(slope_deg).rename(SLOPE_BAND).toFloat()
 
     return dem.addBands(slope_pct).clip(aoi)
