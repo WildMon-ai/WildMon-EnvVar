@@ -9,7 +9,6 @@ class AuthenticationService:
     @staticmethod
     def is_initialized() -> bool:
         try:
-            # Cheap round-trip; raises if not initialized
             ee.Number(1).getInfo()
             return True
         except Exception:

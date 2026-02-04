@@ -4,7 +4,6 @@ import logging
 from typing import Optional, Dict, Callable, List
 import ee
 
-# Assume logger and logging setup are configured elsewhere (as in your final code)
 logger = logging.getLogger(__name__)
 
 def clean_coordinates_dataframe(
