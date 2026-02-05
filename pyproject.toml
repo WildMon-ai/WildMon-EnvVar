@@ -1,7 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ds-gis-pipeline"
 version = "0.1.0"
-description = "Add your description here"
+description = "Environmental covariate extraction for biodiversity and ecological modeling (via Google Earth Engine)"
+authors = [
+    { name = "Claydson Bezerra" },
+    { name = "Nelson Buainain" },
+]
+keywords = ["GIS", "WildMon EnvVars"]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
