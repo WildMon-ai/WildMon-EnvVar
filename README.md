@@ -300,4 +300,4 @@ SERVICE_ACCOUNT_KEY_FILE = "/path/key.json"
 
 ## 📜 License
 
-This project is released under the MIT License. See the LICENSE file for details (TO BE ADDED).
+This project is released under the MIT License.

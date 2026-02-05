@@ -397,7 +397,7 @@ wheels = [
 [[package]]
 name = "ds-gis-pipeline"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "contextily" },
     { name = "earthengine-api" },
