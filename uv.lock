@@ -395,7 +395,7 @@ wheels = [
 ]
 
 [[package]]
-name = "ds-gis-pipeline"
+name = "WildMon-EnvVar"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

@@ -36,8 +36,8 @@ Install:
 After installing `uv`, download the code from this repository, and create the project environment using your terminal:
 
 ```bash
-git clone https://github.com/WildMon-ai/ds-gis-pipeline.git
-cd ds-gis-pipeline
+git clone https://github.com/WildMon-ai/WildMon-EnvVar.git
+cd WildMon-EnvVar
 uv sync
 ```
 
@@ -214,7 +214,7 @@ We recommend opening the notebook in VSCODE, but you alson have the option to la
 
 Run this one time only to install the virtual environment:
 ```bash
-uv run python -m ipykernel install --user --name ds-gis-pipeline
+uv run python -m ipykernel install --user --name WildMon-EnvVar
 ```
 
 Then launch:
@@ -222,7 +222,7 @@ Then launch:
 uv run jupyter notebook pipeline.ipynb
 ```
 
-Change the virtual environment on the box on the top of right of the notebook from `Python 3` to `ds-gis-pipeline`
+Change the virtual environment on the box on the top of right of the notebook from `Python 3` to `WildMon-EnvVar`
 
 ---
 
