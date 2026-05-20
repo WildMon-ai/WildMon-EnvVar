@@ -56,11 +56,14 @@ def _build_reducer_dict() -> dict[str, ee.Reducer]:
     }
 
 
-def _build_combined_reducer(reducers: list[str], reducer_dict: dict[str, ee.Reducer]) -> ee.Reducer:
-    """Combine multiple reducers with shared inputs."""
-    combined = reducer_dict[reducers[0]]
+def _build_combined_reducer(reducers: list[str], reducer_dict: dict[str, ee.Reducer], band: str) -> ee.Reducer:
+    """Combine multiple reducers with shared inputs, explicitly naming outputs as {band}_{reducer}."""
+    def named(r: str) -> ee.Reducer:
+        return reducer_dict[r].setOutputs([f"{band}_{r}"])
+
+    combined = named(reducers[0])
     for r in reducers[1:]:
-        combined = combined.combine(reducer2=reducer_dict[r], sharedInputs=True)
+        combined = combined.combine(reducer2=named(r), sharedInputs=True)
     return combined
 
 def _configure_from_image_stack(
@@ -105,7 +108,7 @@ def _configure_from_image_stack(
                         f"Must be one of {list(reducer_dict.keys())}"
                     )
             group_key = (scale, f"multi_{band}")
-            ee_reducer = _build_combined_reducer(reducers, reducer_dict)
+            ee_reducer = _build_combined_reducer(reducers, reducer_dict, band)
             output_cols = [f"{band}_{r}" for r in reducers]
             reducer_label = "+".join(reducers)
         else:
@@ -168,12 +171,14 @@ def _postprocess_results(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
     # Derived canopy height stats
     if {"canopy_height_mean", "canopy_height_stdDev", "canopy_height_count"}.issubset(df.columns):
+        mean = pd.to_numeric(df["canopy_height_mean"], errors="coerce")
+        std = pd.to_numeric(df["canopy_height_stdDev"], errors="coerce")
+        count = pd.to_numeric(df["canopy_height_count"], errors="coerce")
+
         df["canopy_height_cv"] = (
-            df["canopy_height_stdDev"] / df["canopy_height_mean"].replace(0, float("nan"))
-        ).fillna(0).round(3)
-        df["canopy_height_ci"] = (
-            1.96 * df["canopy_height_stdDev"] / df["canopy_height_count"].pow(0.5)
-        ).round(3)
+            std / mean.replace(0, float("nan"))
+        ).fillna(0).infer_objects(copy=False).round(3)
+        df["canopy_height_ci"] = (1.96 * std / count.pow(0.5)).round(3)
         df = df.drop(columns=["canopy_height_count"])
 
     return df
