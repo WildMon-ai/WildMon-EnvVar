@@ -13,8 +13,8 @@ from variables.landcover import LANDCOVER_CLASSES
 
 BAND_CONFIG = {
     "biointactness": {"scale": 100, "reducer": "mean"},
-    "agb": {"scale": 100, "reducer": "mean"},
-    "canopy_height": {"scale": 10, "reducer": "mean"},
+    "biomass": {"scale": 100, "reducers": ["mean", "min", "max", "stdDev"]},
+    "canopy_height": {"scale": 10, "reducers": ["mean", "max", "min", "stdDev", "count"]},
     "elevation": {"scale": 30, "reducer": "mean"},
     "slope_percent": {"scale": 30, "reducer": "mean"},
     "land_cover": {"scale": 10, "reducer": "mode"},
@@ -51,7 +51,20 @@ def _build_reducer_dict() -> dict[str, ee.Reducer]:
         'min': ee.Reducer.min(),
         'max': ee.Reducer.max(),
         'mode': ee.Reducer.mode(),
+        'stdDev': ee.Reducer.stdDev(),
+        'count': ee.Reducer.count(),
     }
+
+
+def _build_combined_reducer(reducers: list[str], reducer_dict: dict[str, ee.Reducer], band: str) -> ee.Reducer:
+    """Combine multiple reducers with shared inputs, explicitly naming outputs as {band}_{reducer}."""
+    def named(r: str) -> ee.Reducer:
+        return reducer_dict[r].setOutputs([f"{band}_{r}"])
+
+    combined = named(reducers[0])
+    for r in reducers[1:]:
+        combined = combined.combine(reducer2=named(r), sharedInputs=True)
+    return combined
 
 def _configure_from_image_stack(
     image_stack: ee.Image,
@@ -61,48 +74,67 @@ def _configure_from_image_stack(
 ):
     """
     Configure the scale and reducer for each band in an image stack based on BAND_CONFIG and defaults.
-    Returns a dictionary of bands grouped by scale and reducer.
-    
-    Parameters:
-    - image_stack: An ee.Image containing the bands of interest.
-    - default_scale: int, The default scale to use for bands without a specified scale.
-    - default_reducer: str, The default reducer to use for bands without a specified reducer.
-    - reducer_dict: dict[str, ee.Reducer], A dictionary mapping reducer names to ee.Reducer objects.
-    
+
+    Bands with a single "reducer" key are grouped together by (scale, reducer) for efficiency.
+    Bands with a "reducers" list get their own group with a combined EE reducer; their output
+    columns are named {band}_{reducer} (e.g. canopy_height_mean, canopy_height_stdDev).
+
     Returns:
-    - scale_reducer_groups: dict[tuple[int, str], List[str]], A dictionary where each key is a tuple of (scale, reducer) and each value is a list of bands that should be grouped together for reduction.
-    - band_to_image: dict[str, ee.Image], A dictionary where each key is a band name and each value is the ee.Image object for that band.
-    - band_to_reducer: dict[str, str], A dictionary where each key is a band name and each value is the reducer name to use for that band.
+    - scale_reducer_groups: dict[tuple, list[str]] — bands grouped by (scale, reducer_key).
+    - band_to_image: dict[str, ee.Image]
+    - band_to_reducer: dict[str, str] — human-readable reducer label per band.
+    - band_to_output_cols: dict[str, list[str]] — output column names per band.
+    - group_to_ee_reducer: dict[tuple, ee.Reducer] — EE reducer per group key.
     """
     band_names = image_stack.bandNames().getInfo()
     print(f"Using image_stack with BAND_CONFIG/defaults for {len(band_names)} bands...")
-    
+
     scale_reducer_groups = {}
     band_to_image = {}
     band_to_reducer = {}
-    
+    band_to_output_cols = {}
+    group_to_ee_reducer = {}
+
     for band in band_names:
         band_defaults = BAND_CONFIG.get(band, {})
         scale = band_defaults.get("scale", default_scale)
-        reducer = band_defaults.get("reducer", default_reducer)
-        
-        if reducer not in reducer_dict:
-            raise ValueError(
-                f"Invalid reducer '{reducer}' for band '{band}'. "
-                f"Must be one of {list(reducer_dict.keys())}"
-            )
-        
-        group_key = (scale, reducer)
+
+        if "reducers" in band_defaults:
+            reducers = band_defaults["reducers"]
+            for r in reducers:
+                if r not in reducer_dict:
+                    raise ValueError(
+                        f"Invalid reducer '{r}' for band '{band}'. "
+                        f"Must be one of {list(reducer_dict.keys())}"
+                    )
+            group_key = (scale, f"multi_{band}")
+            ee_reducer = _build_combined_reducer(reducers, reducer_dict, band)
+            output_cols = [f"{band}_{r}" for r in reducers]
+            reducer_label = "+".join(reducers)
+        else:
+            reducer = band_defaults.get("reducer", default_reducer)
+            if reducer not in reducer_dict:
+                raise ValueError(
+                    f"Invalid reducer '{reducer}' for band '{band}'. "
+                    f"Must be one of {list(reducer_dict.keys())}"
+                )
+            group_key = (scale, reducer)
+            ee_reducer = reducer_dict[reducer]
+            output_cols = [band]
+            reducer_label = reducer
+
         if group_key not in scale_reducer_groups:
             scale_reducer_groups[group_key] = []
+            group_to_ee_reducer[group_key] = ee_reducer
         scale_reducer_groups[group_key].append(band)
-        
+
         band_to_image[band] = image_stack.select(band)
-        band_to_reducer[band] = reducer
-        
-        print(f"  ✓ {band}: {scale}m, {reducer}")
-    
-    return scale_reducer_groups, band_to_image, band_to_reducer
+        band_to_reducer[band] = reducer_label
+        band_to_output_cols[band] = output_cols
+
+        print(f"  ✓ {band}: {scale}m, {reducer_label}")
+
+    return scale_reducer_groups, band_to_image, band_to_reducer, band_to_output_cols, group_to_ee_reducer
 
 def _log_scale_reducer_groups(
     scale_reducer_groups: dict[tuple[int, str], List[str]]
@@ -123,25 +155,32 @@ def _log_scale_reducer_groups(
 
 def _postprocess_results(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """
-    Postprocess a GeoDataFrame of results by rounding numeric columns to 3 decimal places
-    and replacing land cover numeric codes with their corresponding class labels.
-
-    Parameters:
-    - df: gpd.GeoDataFrame, The GeoDataFrame of results to postprocess.
-
-    Returns:
-    - gpd.GeoDataFrame, The postprocessed GeoDataFrame.
+    Postprocess a GeoDataFrame of results by rounding numeric columns to 3 decimal places,
+    replacing land cover codes with class labels, and computing derived canopy height stats
+    (CV and 95% CI) from the extracted mean/stdDev/count columns.
     """
     non_geom_cols = df.columns.drop(df.geometry.name)
 
     for col in non_geom_cols:
         converted = pd.to_numeric(df[col], errors="coerce")
-
         if converted.notna().any():
             df[col] = converted.round(3)
-    
+
     if 'land_cover' in df.columns:
         df['land_cover'] = df['land_cover'].astype(int).map(LANDCOVER_CLASSES)
+
+    # Derived canopy height stats
+    if {"canopy_height_mean", "canopy_height_stdDev", "canopy_height_count"}.issubset(df.columns):
+        mean = pd.to_numeric(df["canopy_height_mean"], errors="coerce")
+        std = pd.to_numeric(df["canopy_height_stdDev"], errors="coerce")
+        count = pd.to_numeric(df["canopy_height_count"], errors="coerce")
+
+        df["canopy_height_cv"] = (
+            std / mean.replace(0, float("nan"))
+        ).fillna(0).infer_objects(copy=False).round(3)
+        df["canopy_height_ci"] = (1.96 * std / count.pow(0.5)).round(3)
+        df = df.drop(columns=["canopy_height_count"])
+
     return df
 
 def generate_h3_hexagon_grid(
@@ -244,93 +283,95 @@ def extract_values_from_hexagons(
     reducer_dict = _build_reducer_dict()
     if default_reducer not in reducer_dict:
         raise ValueError(f"default_reducer must be one of {list(reducer_dict.keys())}")
-    
-    scale_reducer_groups, band_to_image, band_to_reducer = _configure_from_image_stack(
-        image_stack,
-        default_scale,
-        default_reducer,
-        reducer_dict,
+
+    scale_reducer_groups, band_to_image, band_to_reducer, band_to_output_cols, group_to_ee_reducer = (
+        _configure_from_image_stack(image_stack, default_scale, default_reducer, reducer_dict)
     )
-    
+
     all_bands = list(band_to_image.keys())
-    for band in all_bands:
-        hex_gdf[band] = None
-    
+    all_output_cols = [col for band in all_bands for col in band_to_output_cols[band]]
+    for col in all_output_cols:
+        hex_gdf[col] = None
+
     n_hexagons = len(hex_gdf)
-    
+
     print(f"\nTotal hexagons to process: {n_hexagons}")
     _log_scale_reducer_groups(scale_reducer_groups)
-    
-    band_progress = {band: tqdm(
+
+    col_progress = {col: tqdm(
         total=n_hexagons,
-        desc=f"{band}",
+        desc=col,
         unit="hex",
         position=i,
-        leave=True
-    ) for i, band in enumerate(all_bands)}
-    
+        leave=True,
+    ) for i, col in enumerate(all_output_cols)}
+
     for start_idx in range(0, n_hexagons, batch_size):
         end_idx = min(start_idx + batch_size, n_hexagons)
         batch_gdf = hex_gdf.iloc[start_idx:end_idx].copy()
         batch_size_actual = len(batch_gdf)
-        
+
         batch_gdf['batch_idx'] = range(len(batch_gdf))
         batch_fc = geemap.geopandas_to_ee(batch_gdf, geodesic=False)
-        
-        for (scale, reducer), band_list in scale_reducer_groups.items():
-            images_for_scale = [band_to_image[band] for band in band_list]
-            
-            scale_stack = ee.Image.cat(images_for_scale)
+
+        for group_key, band_list in scale_reducer_groups.items():
+            scale = group_key[0]
+            images_for_group = [band_to_image[band] for band in band_list]
+
+            scale_stack = ee.Image.cat(images_for_group)
             scale_stack = scale_stack.rename(band_list)
-            
-            ee_reducer = reducer_dict[reducer]
-            scale_reducer = ee_reducer.setOutputs(band_list) if len(band_list) == 1 else ee_reducer
-            
+
+            ee_reducer = group_to_ee_reducer[group_key]
+            # For single-band single-reducer groups, name the output after the band
+            is_single_band_single_reducer = (
+                len(band_list) == 1 and len(band_to_output_cols[band_list[0]]) == 1
+            )
+            if is_single_band_single_reducer:
+                ee_reducer = ee_reducer.setOutputs(band_list)
+
             sampled_fc = scale_stack.reduceRegions(
                 collection=batch_fc,
-                reducer=scale_reducer,
+                reducer=ee_reducer,
                 scale=scale,
-                tileScale=tileScale
+                tileScale=tileScale,
             )
-            
+
             sampled_gdf = geemap.ee_to_gdf(sampled_fc)
             sampled_gdf = sampled_gdf.drop(columns=['geometry'], errors='ignore')
-            
+
             if not sampled_gdf.empty and 'batch_idx' in sampled_gdf.columns:
                 sampled_gdf = sampled_gdf.set_index('batch_idx')
-            
+
             for band in band_list:
-                if sampled_gdf.empty or band not in sampled_gdf.columns:
-                    values = [None] * batch_size_actual
-                    values_extracted = 0
-                else:
-                    band_series = sampled_gdf[band]
-                    band_series = band_series.reindex(range(batch_size_actual))
-                    values = band_series.tolist()
-                    values_extracted = band_series.notna().sum()
-                
-                hex_gdf.loc[start_idx:end_idx-1, band] = values
-                
-                band_progress[band].update(batch_size_actual)
-                band_progress[band].set_postfix({
-                    'extracted': f'{values_extracted}/{batch_size_actual}',
-                    'reducer': reducer
-                })
-    
-    for pbar in band_progress.values():
+                for col in band_to_output_cols[band]:
+                    if sampled_gdf.empty or col not in sampled_gdf.columns:
+                        values = [None] * batch_size_actual
+                        values_extracted = 0
+                    else:
+                        col_series = sampled_gdf[col].reindex(range(batch_size_actual))
+                        values = col_series.tolist()
+                        values_extracted = col_series.notna().sum()
+
+                    hex_gdf.loc[start_idx:end_idx - 1, col] = values
+
+                    col_progress[col].update(batch_size_actual)
+                    col_progress[col].set_postfix({'extracted': f'{values_extracted}/{batch_size_actual}'})
+
+    for pbar in col_progress.values():
         pbar.close()
-    
+
     print(f"\n{'='*60}")
     print("✓ ALL DONE!")
     print(f"{'='*60}")
-    
+
     print("\nFinal check:")
     for band in all_bands:
-        non_null = hex_gdf[band].notna().sum()
         reducer_used = band_to_reducer[band]
-        print(f"  {band} ({reducer_used}): {non_null}/{len(hex_gdf)} non-null values")
-    
+        for col in band_to_output_cols[band]:
+            non_null = hex_gdf[col].notna().sum()
+            print(f"  {col} ({reducer_used}): {non_null}/{len(hex_gdf)} non-null values")
+
     hex_gdf = hex_gdf.drop(columns=['batch_idx'], errors='ignore')
     hex_gdf = _postprocess_results(hex_gdf)
-    
+
     return hex_gdf

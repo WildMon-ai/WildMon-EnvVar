@@ -62,8 +62,14 @@ def extract_biomass(
     biomass_image = _load_biomass_image(aoi, year)
 
     logger.info("Extracting biomass statistics...")
+    reducer = (
+        ee.Reducer.mean()
+        .combine(reducer2=ee.Reducer.min(), sharedInputs=True)
+        .combine(reducer2=ee.Reducer.max(), sharedInputs=True)
+        .combine(reducer2=ee.Reducer.stdDev(), sharedInputs=True)
+    )
     compute_biomass_stats = build_variable_extractor(
-        biomass_image, [BIOMASS_BAND], scale
+        biomass_image, [BIOMASS_BAND], scale, reducer=reducer
     )
     fc_stats = points_feature_collection.map(compute_biomass_stats)
 
@@ -129,6 +135,8 @@ def _merge_biomass_results(
     """Merge biomass sampling output into a dataframe copy."""
     column_map = {
         "biomass_mean": f"{BIOMASS_BAND}_mean",
+        "biomass_min": f"{BIOMASS_BAND}_min",
+        "biomass_max": f"{BIOMASS_BAND}_max",
         "biomass_std": f"{BIOMASS_BAND}_stdDev",
     }
     return merge_ee_sampling_results(df, results, column_map)
@@ -149,7 +157,7 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
 
     values = result_df.loc[valid_mask, "biomass_mean"]
     logger.info(
-        "Biomass mean: "
-        f"{values.mean():.2f} ± {values.std():.2f} t/ha "
-        f"(range {values.min():.2f}-{values.max():.2f} t/ha)"
+        f"Biomass mean: {values.mean():.2f} t/ha "
+        f"(min {result_df.loc[valid_mask, 'biomass_min'].min():.2f}, "
+        f"max {result_df.loc[valid_mask, 'biomass_max'].max():.2f} t/ha)"
     )
