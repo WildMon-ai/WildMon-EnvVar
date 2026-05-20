@@ -13,7 +13,7 @@ from variables.landcover import LANDCOVER_CLASSES
 
 BAND_CONFIG = {
     "biointactness": {"scale": 100, "reducer": "mean"},
-    "agb": {"scale": 100, "reducers": ["mean", "min", "max", "stdDev"]},
+    "biomass": {"scale": 100, "reducers": ["mean", "min", "max", "stdDev"]},
     "canopy_height": {"scale": 10, "reducers": ["mean", "max", "min", "stdDev", "count"]},
     "elevation": {"scale": 30, "reducer": "mean"},
     "slope_percent": {"scale": 30, "reducer": "mean"},
