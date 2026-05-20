@@ -44,8 +44,15 @@ def extract_canopy_height(
     canopy_height_image = _load_canopy_height_image(aoi)
 
     logger.info("Extracting canopy height statistics...")
+    reducer = (
+        ee.Reducer.mean()
+        .combine(reducer2=ee.Reducer.max(), sharedInputs=True)
+        .combine(reducer2=ee.Reducer.min(), sharedInputs=True)
+        .combine(reducer2=ee.Reducer.stdDev(), sharedInputs=True)
+        .combine(reducer2=ee.Reducer.count(), sharedInputs=True)
+    )
     compute_canopy_stats = build_variable_extractor(
-        canopy_height_image, [CANOPY_BAND], scale
+        canopy_height_image, [CANOPY_BAND], scale, reducer=reducer
     )
     fc_stats = points_feature_collection.map(compute_canopy_stats)
 
@@ -91,12 +98,28 @@ def _merge_canopy_height_results(
     df: pd.DataFrame,
     results: Optional[Dict],
 ) -> pd.DataFrame:
-    """Merge canopy height sampling output into a dataframe copy."""
+    """Merge canopy height sampling output and compute CV and CI."""
     column_map = {
         "canopy_height_mean": f"{CANOPY_BAND}_mean",
+        "canopy_height_max": f"{CANOPY_BAND}_max",
+        "canopy_height_min": f"{CANOPY_BAND}_min",
         "canopy_height_std": f"{CANOPY_BAND}_stdDev",
+        "_canopy_count": f"{CANOPY_BAND}_count",
     }
-    return merge_ee_sampling_results(df, results, column_map)
+    merged = merge_ee_sampling_results(df, results, column_map)
+
+    # CV = std / mean (coefficient of variation); 0 when mean is 0 to avoid division by zero
+    merged["canopy_height_cv"] = (
+        merged["canopy_height_std"] / merged["canopy_height_mean"].replace(0, float("nan"))
+    ).fillna(0).round(3)
+
+    # 95% CI of the mean = 1.96 * std / sqrt(n)
+    merged["canopy_height_ci"] = (
+        1.96 * merged["canopy_height_std"] / merged["_canopy_count"].pow(0.5)
+    ).round(3)
+
+    merged = merged.drop(columns=["_canopy_count"])
+    return merged
 
 
 def _log_extraction_summary(result_df: pd.DataFrame) -> None:
@@ -111,9 +134,9 @@ def _log_extraction_summary(result_df: pd.DataFrame) -> None:
     if valid_points == 0:
         return
 
-    canopy_values = result_df["canopy_height_mean"].dropna()
+    v = result_df["canopy_height_mean"].dropna()
     logger.info(
-        "Canopy height mean: "
-        f"{canopy_values.mean():.2f} ± {canopy_values.std():.2f} m "
-        f"(range {canopy_values.min():.2f}-{canopy_values.max():.2f} m)"
+        f"Canopy height mean: {v.mean():.2f} m "
+        f"(min {result_df['canopy_height_min'].min():.2f}, "
+        f"max {result_df['canopy_height_max'].max():.2f})"
     )

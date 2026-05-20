@@ -143,25 +143,30 @@ def build_variable_extractor(
     layer_image: ee.Image,
     image_bands: List[str],
     scale: int,
+    reducer: Optional[ee.Reducer] = None,
 ) -> Callable[[ee.Feature], ee.Element]:
     """
-    Return a function that samples image statistics (mean and standard deviation) for a feature geometry
+    Return a function that samples image statistics for a feature geometry
     (e.g. a set of buffered sampling points).
 
     Args:
         layer_image: ee.Image containing the bands of interest.
         image_bands: List of str containing the band names.
         scale: int, The scale at which the sampling will be done.
+        reducer: ee.Reducer to use. Defaults to mean combined with stdDev.
 
     Returns:
         Callable[[ee.Feature], ee.Element], A function that takes an ee.Feature,
         and returns the same feature with the image statistics added as properties.
     """
+    if reducer is None:
+        reducer = ee.Reducer.mean().combine(
+            reducer2=ee.Reducer.stdDev(), sharedInputs=True
+        )
+
     def compute_stats(feature: ee.Feature) -> ee.Element:
         stats = layer_image.select(image_bands).reduceRegion(
-            reducer=ee.Reducer.mean().combine(
-                reducer2=ee.Reducer.stdDev(), sharedInputs=True
-            ),
+            reducer=reducer,
             geometry=feature.geometry(),
             scale=scale,
             maxPixels=1_000_000_000,
