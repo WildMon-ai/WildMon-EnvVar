@@ -18,7 +18,7 @@ LON_COLUMN_NAME = "longitude"
 # 🗺️ Spatial sampling & AOI settings
 # =====================================================================
 
-SAMPLING_POINT_BUFFER_METERS = 200      # Buffer around each point for sampling statistics
+SAMPLING_POINT_BUFFER_METERS = 500      # Buffer around each point for sampling statistics
 AOI_BUFFER_KM = 30                      # Buffer added around all points to define AOI 
 HEXAGRID_RESOLUTION = 5                 # H3 hexagon resolution
 
