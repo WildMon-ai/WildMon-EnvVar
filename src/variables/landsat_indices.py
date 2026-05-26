@@ -17,7 +17,6 @@ NDWI_BAND = "ndwi"
 MNDWI_BAND = "mndwi"
 KNDVI_BAND = "kndvi"
 
-KNDVI_SIGMA = 1.0
 
 ALL_BANDS = [NDVI_BAND, NDWI_BAND, MNDWI_BAND, KNDVI_BAND]
 
@@ -153,7 +152,7 @@ def _process_image(image: ee.Image) -> ee.Image:
     ndvi = _calc_ndvi(optical)
     ndwi = _calc_ndwi(optical)
     mndwi = _calc_mndwi(optical)
-    kndvi = _calc_kndvi(optical)
+    kndvi = _calc_kndvi(ndvi)
 
     return masked.addBands([optical, ndvi, ndwi, mndwi, kndvi])
 
@@ -187,17 +186,9 @@ def _calc_mndwi(optical: ee.Image) -> ee.Image:
     return raw.updateMask(valid).rename(MNDWI_BAND)
 
 
-def _calc_kndvi(optical: ee.Image) -> ee.Image:
-    """kNDVI = tanh((NIR - Red)^2 / (4 * sigma^2)). Camps-Valls et al. 2021, eq. 2."""
-    nir = optical.select("SR_B5")
-    red = optical.select("SR_B4")
-    return (
-        nir.subtract(red)
-        .pow(2)
-        .divide(4.0 * KNDVI_SIGMA**2)
-        .tanh()
-        .rename(KNDVI_BAND)
-    )
+def _calc_kndvi(ndvi: ee.Image) -> ee.Image:
+    """kNDVI = tanh(NDVI^2). Camps-Valls et al. 2021, eq. 3 (sigma = 0.5*(NIR+Red))."""
+    return ndvi.pow(2).tanh().rename(KNDVI_BAND)
 
 
 def _build_column_map(active_bands: list[str]) -> Dict[str, str]:
