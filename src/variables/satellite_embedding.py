@@ -137,12 +137,19 @@ def _merge_embedding_results(
     if not features:
         return merged
 
+    embedding_map: Dict[object, object] = {}
     for f in features:
         props = f.get("properties", {})
         idx = props.get("index")
         if idx is None or idx not in merged.index:
             continue
-        merged.at[idx, EMBEDDING_COLUMN] = props.get(EMBEDDING_COLUMN)
+        embedding_map[idx] = props.get(EMBEDDING_COLUMN)
+
+    merged[EMBEDDING_COLUMN] = pd.Series(
+        [embedding_map.get(idx) for idx in merged.index],
+        index=merged.index,
+        dtype=object,
+    )
 
     return merged
 
