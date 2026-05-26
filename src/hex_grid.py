@@ -14,7 +14,7 @@ from variables.landcover import LANDCOVER_CLASSES
 BAND_CONFIG = {
     "biointactness": {"scale": 100, "reducer": "mean"},
     "biomass": {"scale": 100, "reducers": ["mean", "min", "max", "stdDev"]},
-    "canopy_height": {"scale": 10, "reducers": ["mean", "max", "min", "stdDev", "CI-VI"]},
+    "canopy_height": {"scale": 10, "reducers": ["mean", "max", "min", "stdDev", "count"]},
     "elevation": {"scale": 30, "reducer": "mean"},
     "slope_percent": {"scale": 30, "reducer": "mean"},
     "land_cover": {"scale": 10, "reducer": "mode"},
@@ -56,7 +56,6 @@ def _build_reducer_dict() -> dict[str, ee.Reducer]:
         'mode': ee.Reducer.mode(),
         'stdDev': ee.Reducer.stdDev(),
         'count': ee.Reducer.count(),
-        'CI-VI': ee.Reducer.count(),
     }
 
 
@@ -174,10 +173,10 @@ def _postprocess_results(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         df['land_cover'] = df['land_cover'].astype(int).map(LANDCOVER_CLASSES)
 
     # Derived canopy height stats
-    if {"canopy_height_mean", "canopy_height_stdDev", "canopy_height_CI-VI"}.issubset(df.columns):
+    if {"canopy_height_mean", "canopy_height_stdDev", "canopy_height_count"}.issubset(df.columns):
         mean = pd.to_numeric(df["canopy_height_mean"], errors="coerce")
         std = pd.to_numeric(df["canopy_height_stdDev"], errors="coerce")
-        count = pd.to_numeric(df["canopy_height_CI-VI"], errors="coerce")
+        count = pd.to_numeric(df["canopy_height_count"], errors="coerce")
 
         df["canopy_height_cv"] = (
             std / mean.replace(0, float("nan"))
@@ -192,7 +191,7 @@ def _postprocess_results(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
                 (ch_max - mean) / ch_range.replace(0, float("nan"))
             ).fillna(0).round(3)
 
-        df = df.drop(columns=["canopy_height_CI-VI"])
+        df = df.drop(columns=["canopy_height_count"])
 
     return df
 

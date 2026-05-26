@@ -98,7 +98,6 @@ def _build_indices_composite(
     Water masking is applied selectively: NDVI and kNDVI bands are masked; NDWI and MNDWI are not.
     """
     collection = _load_and_filter_collection(aoi, start_date, end_date, cloud_cover_threshold)
-    base_projection = collection.first().projection()
 
     glcf_water, osm_water = load_water_layers(aoi=aoi)
     water_mask = build_combined_water_mask(
@@ -118,7 +117,6 @@ def _build_indices_composite(
 
     return (
         ndvi.addBands([ndwi, mndwi, kndvi])
-        .reproject(base_projection)
         .clip(aoi)
     )
 
@@ -155,7 +153,7 @@ def _process_image(image: ee.Image) -> ee.Image:
     ndvi = _calc_ndvi(optical)
     ndwi = _calc_ndwi(optical)
     mndwi = _calc_mndwi(optical)
-    kndvi = _calc_kndvi(ndvi)
+    kndvi = _calc_kndvi(optical)
 
     return masked.addBands([optical, ndvi, ndwi, mndwi, kndvi])
 
@@ -173,19 +171,33 @@ def _calc_ndwi(optical: ee.Image) -> ee.Image:
     """NDWI = (Green - NIR) / (Green + NIR)."""
     green = optical.select("SR_B3")
     nir = optical.select("SR_B5")
-    return green.subtract(nir).divide(green.add(nir)).rename(NDWI_BAND)
+    denom = green.add(nir)
+    raw = green.subtract(nir).divide(denom)
+    valid = denom.abs().gt(1e-6).And(raw.gte(-1)).And(raw.lte(1))
+    return raw.updateMask(valid).rename(NDWI_BAND)
 
 
 def _calc_mndwi(optical: ee.Image) -> ee.Image:
     """MNDWI = (Green - SWIR1) / (Green + SWIR1). Reduces built-up noise vs NDWI."""
     green = optical.select("SR_B3")
     swir1 = optical.select("SR_B6")
-    return green.subtract(swir1).divide(green.add(swir1)).rename(MNDWI_BAND)
+    denom = green.add(swir1)
+    raw = green.subtract(swir1).divide(denom)
+    valid = denom.abs().gt(1e-6).And(raw.gte(-1)).And(raw.lte(1))
+    return raw.updateMask(valid).rename(MNDWI_BAND)
 
 
-def _calc_kndvi(ndvi: ee.Image) -> ee.Image:
-    """kNDVI = tanh(NDVI^2 / (2 * sigma^2)). Non-saturating alternative to NDVI."""
-    return ndvi.pow(2).divide(2.0 * KNDVI_SIGMA**2).tanh().rename(KNDVI_BAND)
+def _calc_kndvi(optical: ee.Image) -> ee.Image:
+    """kNDVI = tanh((NIR - Red)^2 / (4 * sigma^2)). Camps-Valls et al. 2021, eq. 2."""
+    nir = optical.select("SR_B5")
+    red = optical.select("SR_B4")
+    return (
+        nir.subtract(red)
+        .pow(2)
+        .divide(4.0 * KNDVI_SIGMA**2)
+        .tanh()
+        .rename(KNDVI_BAND)
+    )
 
 
 def _build_column_map(active_bands: list[str]) -> Dict[str, str]:

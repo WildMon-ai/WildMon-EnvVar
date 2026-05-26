@@ -44,6 +44,9 @@ MAX_SEARCH_DISTANCE_M_WATERDIST = 20000   # Max search radius for distance-to-wa
 
 [VARIABLES_ENABLED]
 ndvi = true
+ndwi = true
+mndwi = true
+kndvi = true
 canopy_height = true
 agb = true
 land_cover = true
