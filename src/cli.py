@@ -23,7 +23,7 @@ from variables.canopy_height import extract_canopy_height
 from variables.elevation import extract_elevation, ELEVATION_BANDS
 from export import export_aoi_geojson, export_csv, export_rasters_to_gdrive, export_hexagrid_results, DEFAULT_IMAGE_EXPORT_CRS
 from variables.landcover import extract_landcover
-from variables.ndvi import extract_ndvi
+from variables.landsat_indices import extract_landsat_indices, ALL_BANDS as LANDSAT_INDEX_BANDS
 from variables.nighttime_lights import extract_nighttime_lights
 from sampling import (
     clean_coordinates_dataframe,
@@ -173,15 +173,17 @@ def run_pipeline(cfg: PipelineConfig,
     
     images: list[ee.Image] = []
 
-    if cfg.VARIABLES_ENABLED.get("ndvi", False):
-        df, image_ndvi = extract_ndvi(
+    landsat_enabled = {b: cfg.VARIABLES_ENABLED.get(b, False) for b in LANDSAT_INDEX_BANDS}
+    if any(landsat_enabled.values()):
+        df, landsat_images = extract_landsat_indices(
             df=df,
             aoi=aoi,
             points_feature_collection=points_fc,
             start_date=cfg.IMAGE_START_DATE,
             end_date=cfg.IMAGE_END_DATE,
+            enabled=landsat_enabled,
         )
-        images.append(image_ndvi)
+        images.extend(landsat_images.values())
 
     if cfg.VARIABLES_ENABLED.get("canopy_height", False):
         df, image_canopy_height = extract_canopy_height(

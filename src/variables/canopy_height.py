@@ -118,6 +118,13 @@ def _merge_canopy_height_results(
         1.96 * merged["canopy_height_std"] / merged["_canopy_count"].pow(0.5)
     ).round(3)
 
+    # Variability Index = (max - mean) / (max - min); 0 when range is 0
+    ch_range = merged["canopy_height_max"] - merged["canopy_height_min"]
+    merged["canopy_height_vindex"] = (
+        (merged["canopy_height_max"] - merged["canopy_height_mean"])
+        / ch_range.replace(0, float("nan"))
+    ).fillna(0).round(3)
+
     merged = merged.drop(columns=["_canopy_count"])
     return merged
 

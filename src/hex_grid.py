@@ -14,11 +14,14 @@ from variables.landcover import LANDCOVER_CLASSES
 BAND_CONFIG = {
     "biointactness": {"scale": 100, "reducer": "mean"},
     "biomass": {"scale": 100, "reducers": ["mean", "min", "max", "stdDev"]},
-    "canopy_height": {"scale": 10, "reducers": ["mean", "max", "min", "stdDev", "count"]},
+    "canopy_height": {"scale": 10, "reducers": ["mean", "max", "min", "stdDev", "CI-VI"]},
     "elevation": {"scale": 30, "reducer": "mean"},
     "slope_percent": {"scale": 30, "reducer": "mean"},
     "land_cover": {"scale": 10, "reducer": "mode"},
     "ndvi": {"scale": 30, "reducer": "mean"},
+    "ndwi": {"scale": 30, "reducer": "mean"},
+    "mndwi": {"scale": 30, "reducer": "mean"},
+    "kndvi": {"scale": 30, "reducer": "mean"},
     "nighttime_lights": {"scale": 464, "reducer": "mean"},
     "water_mask": {"scale": 30, "reducer": "mode"},
     "distance_to_water_m": {"scale": 30, "reducer": "mean"},
@@ -53,6 +56,7 @@ def _build_reducer_dict() -> dict[str, ee.Reducer]:
         'mode': ee.Reducer.mode(),
         'stdDev': ee.Reducer.stdDev(),
         'count': ee.Reducer.count(),
+        'CI-VI': ee.Reducer.count(),
     }
 
 
@@ -170,16 +174,25 @@ def _postprocess_results(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         df['land_cover'] = df['land_cover'].astype(int).map(LANDCOVER_CLASSES)
 
     # Derived canopy height stats
-    if {"canopy_height_mean", "canopy_height_stdDev", "canopy_height_count"}.issubset(df.columns):
+    if {"canopy_height_mean", "canopy_height_stdDev", "canopy_height_CI-VI"}.issubset(df.columns):
         mean = pd.to_numeric(df["canopy_height_mean"], errors="coerce")
         std = pd.to_numeric(df["canopy_height_stdDev"], errors="coerce")
-        count = pd.to_numeric(df["canopy_height_count"], errors="coerce")
+        count = pd.to_numeric(df["canopy_height_CI-VI"], errors="coerce")
 
         df["canopy_height_cv"] = (
             std / mean.replace(0, float("nan"))
         ).fillna(0).infer_objects(copy=False).round(3)
         df["canopy_height_ci"] = (1.96 * std / count.pow(0.5)).round(3)
-        df = df.drop(columns=["canopy_height_count"])
+
+        if {"canopy_height_max", "canopy_height_min"}.issubset(df.columns):
+            ch_max = pd.to_numeric(df["canopy_height_max"], errors="coerce")
+            ch_min = pd.to_numeric(df["canopy_height_min"], errors="coerce")
+            ch_range = ch_max - ch_min
+            df["canopy_height_vindex"] = (
+                (ch_max - mean) / ch_range.replace(0, float("nan"))
+            ).fillna(0).round(3)
+
+        df = df.drop(columns=["canopy_height_CI-VI"])
 
     return df
 
